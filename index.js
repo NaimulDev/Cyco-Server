@@ -1,6 +1,13 @@
 const express = require('express');
-const app = express();
+require('dotenv').config();
 const port = process.env.PORT || 8080;
+
+const app = express();
+const cors = require('cors')
+
+// middileWare
+app.use(cors);
+app.use(express.json());
 
 // Database Functionalities -
 async function run() {}
