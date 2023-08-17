@@ -26,9 +26,19 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    // there will be Collection
+    const MoviesCollection = client.db('Cyco').collection('MoviesCollection')
 
-    // Api
+    // Movies Api 
+    app.get('/movies', async (req, res) => {
+      try {
+        const result = await MoviesCollection.find().toArray();
+        res.status(200).json(result);
+      } 
+      catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+    
     app.get('/test',(req,res)=>{
       res.send('Aww! cyco-engine Seraa ')
     })
@@ -38,7 +48,7 @@ async function run() {
     console.log("Hey Dev! No pain No gain.. Successfully Connected MongoDb");
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
