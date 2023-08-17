@@ -7,7 +7,7 @@ const app = express();
 const cors = require('cors')
 
 // middileWare
-app.use(cors);
+app.use(cors());
 app.use(express.json());
 
 // Database Functionalities -
