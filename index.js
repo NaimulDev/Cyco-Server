@@ -26,7 +26,9 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    const MoviesCollection = client.db('Cyco').collection('MoviesCollection')
+    const MoviesCollection = client.db('Cyco').collection('MoviesCollection');
+    const SeriesCollection = client.db('Cyco').collection('SeriesCollection');
+    const UserCollection = client.db('Cyco').collection('UserCollection');
 
     // Movies Api 
     app.get('/movies', async (req, res) => {
@@ -39,6 +41,18 @@ async function run() {
       }
     });
     
+    // Series APi 
+    app.get('/series', async(req,res)=>{
+      try {
+        const result = await SeriesCollection.find().toArray();
+        res.status(200).json(result);
+      }
+      catch (error) {
+        res.status(500).json( { error: 'Internal Server Error'})
+      }
+    });
+
+    // testing
     app.get('/test',(req,res)=>{
       res.send('Aww! cyco-engine Seraa ')
     })
@@ -55,7 +69,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-  res.send('cyco-engine');
+  res.send('cyco-engine.. to check MongoDb Database you can search /test');
 });
 
 app.listen(port, () => {
