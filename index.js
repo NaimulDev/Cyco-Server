@@ -1,10 +1,10 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 8080;
 
 const app = express();
-const cors = require('cors')
+const cors = require('cors');
 
 // middileWare
 app.use(cors());
@@ -20,7 +20,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -30,13 +30,12 @@ async function run() {
     const SeriesCollection = client.db('Cyco').collection('SeriesCollection');
     const UserCollection = client.db('Cyco').collection('UserCollection');
 
-    // Movies Api 
+    // Movies Api
     app.get('/movies', async (req, res) => {
       try {
         const result = await MoviesCollection.find().toArray();
         res.status(200).json(result);
-      } 
-      catch (error) {
+      } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
@@ -53,20 +52,18 @@ async function run() {
     });
 
     // testing
-    app.get('/test',(req,res)=>{
-      res.send('Aww! cyco-engine Seraa ')
-    })
+      res.send('Aww! cyco-engine Seraa ');
+    });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Hey Dev! No pain No gain.. Successfully Connected MongoDb");
+    await client.db('admin').command({ ping: 1 });
+    console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
 }
 run().catch(console.dir);
-
 
 app.get('/', (req, res) => {
   res.send('cyco-engine.. to check MongoDb Database you can search /test');
