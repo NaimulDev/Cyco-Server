@@ -2,7 +2,7 @@ const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 8080;
-
+const jwt = require("jsonwebtoken");
 const app = express();
 const cors = require('cors');
 
@@ -23,6 +23,28 @@ const client = new MongoClient(uri, {
   },
 });
 
+
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
+  }
+  // bearer token
+  const token = authorization.split(" ")[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     await client.connect();
@@ -30,8 +52,19 @@ async function run() {
     const SeriesCollection = client.db('Cyco').collection('SeriesCollection');
     const UserCollection = client.db('Cyco').collection('UserCollection');
 
+
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "24h",
+      });
+      res.send({ token });
+    });
+
+
+
     // Movies Api
-    app.get('/movies', async (req, res) => {
+    app.get('/movies', verifyJWT, async (req, res) => {
       try {
         const result = await MoviesCollection.find().toArray();
         res.status(200).json(result);
@@ -41,7 +74,7 @@ async function run() {
     });
     
     // Series APi 
-    app.get('/series', async(req,res)=>{
+    app.get('/series', verifyJWT, async(req,res)=>{
       try {
         const result = await SeriesCollection.find().toArray();
         res.status(200).json(result);
@@ -51,9 +84,8 @@ async function run() {
       }
     });
 
-    // testing
-      res.send('Aww! cyco-engine Seraa ');
-    });
+  
+   
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 });
