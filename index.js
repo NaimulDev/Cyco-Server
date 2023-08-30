@@ -35,25 +35,43 @@ async function run() {
       try {
         const result = await MoviesCollection.find().toArray();
         res.status(200).json(result);
-      } 
+      }
       catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
-    
+
     // Series APi 
-    app.get('/series', async(req,res)=>{
+    app.get('/series', async (req, res) => {
       try {
         const result = await SeriesCollection.find().toArray();
         res.status(200).json(result);
       }
       catch (error) {
-        res.status(500).json( { error: 'Internal Server Error'})
+        res.status(500).json({ error: 'Internal Server Error' })
       }
     });
 
+    app.post('/addToWatchlist', async (req, res) => {
+      try {
+        const { userEmail } = req.body;
+        const { movie } = req.body; 
+
+        await UserCollection.updateOne(
+          { email: userEmail },
+          { $addToSet: { watchlist: movie } } 
+        );
+
+        res.status(200).json({ message: 'Movie added to watchlist' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+
+
     // testing
-    app.get('/test',(req,res)=>{
+    app.get('/test', (req, res) => {
       res.send('Aww! cyco-engine Seraa ')
     })
 
