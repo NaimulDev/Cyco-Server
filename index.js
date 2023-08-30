@@ -52,6 +52,33 @@ async function run() {
       }
     });
 
+    // for Save New user Info 
+    app.post('/register', async (req, res) => {
+      try {
+        const { username, email, password,role } = req.body;
+    
+        // Check if the email is already registered
+        const existingUser = await UserCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(409).json({ error: 'Email already registered' });
+        }
+    
+        // Create a new user document
+        await UserCollection.insertOne({
+          username,
+          role,
+          email,
+          password,
+          watchlist: [], // Initialize an empty watchlist for the user
+        });
+    
+        res.status(201).json({ message: 'User registered successfully' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Building Watchlist
     app.post('/addToWatchlist', async (req, res) => {
       try {
         const { userEmail } = req.body;
