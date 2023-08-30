@@ -55,7 +55,7 @@ async function run() {
     // for Save New user Info 
     app.post('/register', async (req, res) => {
       try {
-        const { username, email, password,role } = req.body;
+        const { username, email, password,role,photoUrl } = req.body;
     
         // Check if the email is already registered
         const existingUser = await UserCollection.findOne({ email });
@@ -69,6 +69,7 @@ async function run() {
           role,
           email,
           password,
+          photoUrl,
           watchlist: [], // Initialize an empty watchlist for the user
         });
     
