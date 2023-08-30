@@ -52,6 +52,23 @@ async function run() {
       }
     });
 
+    // Users Data Get
+    app.get('/user/:email', async (req, res) => {
+      try {
+        const { email } = req.params;
+        const userData = await UserCollection.findOne({ email });
+        if (userData) {
+          res.status(200).json(userData);
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+    
+
+
     // for Save New user Info 
     app.post('/register', async (req, res) => {
       try {
