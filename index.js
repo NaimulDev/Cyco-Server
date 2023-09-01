@@ -2,7 +2,7 @@ const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 8080;
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require('cors');
 
@@ -23,22 +23,21 @@ const client = new MongoClient(uri, {
   },
 });
 
-
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
     return res
       .status(401)
-      .send({ error: true, message: "unauthorized access" });
+      .send({ error: true, message: 'unauthorized access' });
   }
   // bearer token
-  const token = authorization.split(" ")[1];
+  const token = authorization.split(' ')[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       return res
         .status(401)
-        .send({ error: true, message: "unauthorized access" });
+        .send({ error: true, message: 'unauthorized access' });
     }
     req.decoded = decoded;
     next();
@@ -49,40 +48,33 @@ async function run() {
   try {
     await client.connect();
     const MoviesCollection = client.db('Cyco').collection('MoviesCollection');
-    const SeriesCollection = client.db('Cyco').collection('SeriesCollection');
-    const UserCollection = client.db('Cyco').collection('UserCollection');
 
-
-    app.post("/jwt", (req, res) => {
+    app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "24h",
+        expiresIn: '24h',
       });
       res.send({ token });
     });
-
-
 
     // Movies Api
     app.get('/movies', verifyJWT, async (req, res) => {
       try {
         const result = await MoviesCollection.find().toArray();
         res.status(200).json(result);
-      }
-      catch (error) {
+      } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // Series APi 
+    // Series APi
 
-    app.get('/series', verifyJWT, async(req,res)=>{
+    app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await SeriesCollection.find().toArray();
         res.status(200).json(result);
-      }
-      catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' })
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
       }
     });
 
@@ -100,20 +92,20 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
-    
-// test
 
-    // for Save New user Info 
+    // test
+
+    // for Save New user Info
     app.post('/register', async (req, res) => {
       try {
-        const { username, email, password,role,photoUrl } = req.body;
-    
+        const { username, email, password, role, photoUrl } = req.body;
+
         // Check if the email is already registered
         const existingUser = await UserCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: 'Email already registered' });
         }
-    
+
         // Create a new user document
         await UserCollection.insertOne({
           username,
@@ -123,7 +115,7 @@ async function run() {
           photoUrl,
           watchlist: [], // Initialize an empty watchlist for the user
         });
-    
+
         res.status(201).json({ message: 'User registered successfully' });
       } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
@@ -134,11 +126,11 @@ async function run() {
     app.post('/addToWatchlist', async (req, res) => {
       try {
         const { userEmail } = req.body;
-        const { movie } = req.body; 
+        const { movie } = req.body;
 
         await UserCollection.updateOne(
           { email: userEmail },
-          { $addToSet: { watchlist: movie } } 
+          { $addToSet: { watchlist: movie } }
         );
 
         res.status(200).json({ message: 'Movie added to watchlist' });
@@ -149,8 +141,8 @@ async function run() {
 
     // testing
     app.get('/test', (req, res) => {
-      res.send('Aww! cyco-engine Seraa ')
-    })
+      res.send('Aww! cyco-engine Seraa ');
+    });
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 });
@@ -163,7 +155,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-  res.send('cyco-engine.. to check MongoDb Database you can search /test');
+  res.send('cyco-engine');
 });
 
 app.listen(port, () => {
