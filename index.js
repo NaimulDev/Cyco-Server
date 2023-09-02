@@ -5,6 +5,9 @@ const port = process.env.PORT || 8080;
 const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require('cors');
+const stripe = require('stripe')('process.env.PAYMENT_SECRET_KEY');
+
+
 
 // middileWare
 app.use(cors());
@@ -139,6 +142,38 @@ async function run() {
       }
     });
 
+
+// Payment intent Method: 
+app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+  const { price } = req.body;
+  const amount = price * 100;
+
+  console.log(price, amount)
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
+
+
+
+
+
+
+
+
+
+
     // testing
     app.get('/test', (req, res) => {
       res.send('Aww! cyco-engine Seraa ');
@@ -152,6 +187,11 @@ async function run() {
     // await client.close();
   }
 }
+
+
+
+
+
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
