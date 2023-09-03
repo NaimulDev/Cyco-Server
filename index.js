@@ -135,7 +135,7 @@ async function run() {
         // );
 
         const updatedWishlist = {
-          $push: { wishlist: movie },
+          $set: { wishlist: movie },
         };
 
         const wishlist = await userCollection.updateOne(
