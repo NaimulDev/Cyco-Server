@@ -126,16 +126,31 @@ async function run() {
     // WISHLIST:
     app.post('/wishlist', async (req, res) => {
       try {
-        const { userEmail } = req.body;
-        const { movie } = req.body;
+        const { user, movie } = req.body;
+        // console.log(user, movie);
 
-        await userCollection.updateOne(
-          { email: userEmail },
-          { $addToSet: { wishlist: movie } }
+        // await userCollection.updateOne(
+        //   { email: user?.email },
+        //   { $addToSet: { wishlist: movie } }
+        // );
+
+        const updatedWishlist = {
+          $push: { wishlist: movie },
+        };
+
+        const wishlist = await userCollection.updateOne(
+          { email: user?.email },
+          updatedWishlist
         );
+        console.log(wishlist);
 
-        res.status(200).json({ message: 'Movie added to wishlist' });
+        if (wishlist.matchedCount === 1) {
+          res.status(200).json({ message: 'Movie added to wishlist' });
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
       } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
