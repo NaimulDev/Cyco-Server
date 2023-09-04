@@ -66,13 +66,34 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-      } catch (error) {
+        res.send(result)
+      }
+      catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // SERIES:
-    app.get('/series', async (req, res) => {
+    // upload new movies 
+    app.post('/movies', async (req, res) => {
+      try {
+        const movieData = req.body; 
+        const result = await moviesCollection.insertOne(movieData);
+        res.send(result)
+    
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Movie saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save the movie' });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Series APi 
+
+    app.get('/series', verifyJWT, async(req,res)=>{
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
