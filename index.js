@@ -9,23 +9,11 @@ const stripe = require('stripe')('process.env.PAYMENT_SECRET_KEY');
 
 
 
-// middileWare
+// MIDDLEWARE:
 app.use(cors());
 app.use(express.json());
 
-// Database Functionalities -
-
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.jvqibpv.mongodb.net/?retryWrites=true&w=majority`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
+// JWT:
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -47,10 +35,25 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
+// DATABASE:
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
+
+// CREATE MONGO-CLIENT:
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
 async function run() {
   try {
     await client.connect();
-    const MoviesCollection = client.db('Cyco').collection('MoviesCollection');
+    const moviesCollection = client.db('cyco').collection('movies');
+    const userCollection = client.db('cyco').collection('users');
+    const seriesCollection = client.db('cyco').collection('series');
+    // const wishlistCollection = client.db('cyco').collection('wishlist');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -60,32 +63,52 @@ async function run() {
       res.send({ token });
     });
 
-    // Movies Api
-    app.get('/movies', verifyJWT, async (req, res) => {
+    // MOVIES:
+    app.get('/movies', async (req, res) => {
       try {
-        const result = await MoviesCollection.find().toArray();
+        const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-      } catch (error) {
+        res.send(result)
+      }
+      catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // Series APi
-
-    app.get('/series', verifyJWT, async (req, res) => {
+    // upload new movies 
+    app.post('/movies', async (req, res) => {
       try {
-        const result = await SeriesCollection.find().toArray();
+        const movieData = req.body; 
+        const result = await moviesCollection.insertOne(movieData);
+        res.send(result)
+    
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Movie saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save the movie' });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Series APi 
+
+    app.get('/series', verifyJWT, async(req,res)=>{
+      try {
+        const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
       }
     });
 
-    // Users Data Get
+    // USERS:
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
-        const userData = await UserCollection.findOne({ email });
+        const userData = await userCollection.findOne({ email });
         if (userData) {
           res.status(200).json(userData);
         } else {
@@ -96,27 +119,24 @@ async function run() {
       }
     });
 
-    // test
-
-    // for Save New user Info
     app.post('/register', async (req, res) => {
       try {
         const { username, email, password, role, photoUrl } = req.body;
 
         // Check if the email is already registered
-        const existingUser = await UserCollection.findOne({ email });
+        const existingUser = await userCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: 'Email already registered' });
         }
 
         // Create a new user document
-        await UserCollection.insertOne({
+        await userCollection.insertOne({
           username,
           role,
           email,
           password,
           photoUrl,
-          watchlist: [], // Initialize an empty watchlist for the user
+          wishlist: [],
         });
 
         res.status(201).json({ message: 'User registered successfully' });
@@ -125,19 +145,36 @@ async function run() {
       }
     });
 
-    // Building Watchlist
-    app.post('/addToWatchlist', async (req, res) => {
+    // WISHLIST:
+    app.post('/wishlist', async (req, res) => {
       try {
-        const { userEmail } = req.body;
-        const { movie } = req.body;
+        const { user, movie } = req.body;
+        console.log(user?.email);
 
-        await UserCollection.updateOne(
-          { email: userEmail },
-          { $addToSet: { watchlist: movie } }
+        // await userCollection.updateOne(
+        //   { email: user?.email },
+        //   { $addToSet: { wishlist: movie } }
+        // );
+
+        // const updatedWishlist = {
+        //   $addToSet: { wishlist: movie },
+        // };
+
+        const wishlist = await userCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { wishlist: movie } }
         );
+        console.log(wishlist);
 
-        res.status(200).json({ message: 'Movie added to watchlist' });
+        if (wishlist.modifiedCount === 1) {
+          res.status(200).json({ message: 'Movie added to wishlist' });
+        } else if (wishlist.matchedCount === 1) {
+          res.status(403).json({ message: 'Already added to wishlist' });
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
       } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
@@ -174,16 +211,42 @@ app.post("/create-payment-intent",  async (req, res) => {
 
 
 
-    // testing
-    app.get('/test', (req, res) => {
-      res.send('Aww! cyco-engine Seraa ');
-    });
 
-    // Send a ping to confirm a successful connection
+// Payment intent Method: 
+app.post("/create-payment-intent",  async (req, res) => {
+  const { price } = req.body;
+  const amount = price * 100;
+
+  console.log(price, amount)
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
+
+
+
+
+
+
+
+
+
+
+    // CHECK SERVER CONNECTION:
     await client.db('admin').command({ ping: 1 });
     console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
-    // Ensures that the client will close when you finish/error
     // await client.close();
   }
 }
