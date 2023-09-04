@@ -64,30 +64,111 @@ async function run() {
 
 
     // Movies Api
-    app.get('/movies', verifyJWT, async (req, res) => {
+    app.get('/movies', async (req, res) => {
       try {
         const result = await MoviesCollection.find().toArray();
         res.status(200).json(result);
-      } catch (error) {
+        res.send(result)
+      }
+      catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
+    // upload new movies 
+    app.post('/movies', async (req, res) => {
+      try {
+        const movieData = req.body; 
+        const result = await MoviesCollection.insertOne(movieData);
     
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Movie saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save the movie' });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
     // Series APi 
+
     app.get('/series', verifyJWT, async(req,res)=>{
       try {
         const result = await SeriesCollection.find().toArray();
         res.status(200).json(result);
       }
       catch (error) {
-        res.status(500).json( { error: 'Internal Server Error'})
+        res.status(500).json({ error: 'Internal Server Error' })
       }
     });
 
+    // Users Data Get
+    app.get('/user/:email', async (req, res) => {
+      try {
+        const { email } = req.params;
+        const userData = await UserCollection.findOne({ email });
+        if (userData) {
+          res.status(200).json(userData);
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+    
+// test
 
+    // for Save New user Info 
+    app.post('/register', async (req, res) => {
+      try {
+        const { username, email, password,role,photoUrl } = req.body;
+    
+        // Check if the email is already registered
+        const existingUser = await UserCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(409).json({ error: 'Email already registered' });
+        }
+    
+        // Create a new user document
+        await UserCollection.insertOne({
+          username,
+          role,
+          email,
+          password,
+          photoUrl,
+          watchlist: [], // Initialize an empty watchlist for the user
+        });
+    
+        res.status(201).json({ message: 'User registered successfully' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-  
-   
+    // Building Watchlist
+    app.post('/addToWatchlist', async (req, res) => {
+      try {
+        const { userEmail } = req.body;
+        const { movie } = req.body; 
+
+        await UserCollection.updateOne(
+          { email: userEmail },
+          { $addToSet: { watchlist: movie } } 
+        );
+
+        res.status(200).json({ message: 'Movie added to watchlist' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // testing
+    app.get('/test', (req, res) => {
+      res.send('Aww! cyco-engine Seraa ')
+    })
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 });
