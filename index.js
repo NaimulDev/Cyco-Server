@@ -34,9 +34,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.jvqibpv.mongodb.net/?retryWrites=true&w=majority`;
-
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
 const client = new MongoClient(uri, {
@@ -128,25 +126,27 @@ async function run() {
     app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
-        // console.log(user, movie);
+        console.log(user?.email);
 
         // await userCollection.updateOne(
         //   { email: user?.email },
         //   { $addToSet: { wishlist: movie } }
         // );
 
-        const updatedWishlist = {
-          $set: { wishlist: movie },
-        };
+        // const updatedWishlist = {
+        //   $addToSet: { wishlist: movie },
+        // };
 
         const wishlist = await userCollection.updateOne(
           { email: user?.email },
-          updatedWishlist
+          { $addToSet: { wishlist: movie } }
         );
         console.log(wishlist);
 
-        if (wishlist.matchedCount === 1) {
+        if (wishlist.modifiedCount === 1) {
           res.status(200).json({ message: 'Movie added to wishlist' });
+        } else if (wishlist.matchedCount === 1) {
+          res.status(403).json({ message: 'Already added to wishlist' });
         } else {
           res.status(404).json({ error: 'User not found' });
         }
