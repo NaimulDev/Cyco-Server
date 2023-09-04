@@ -5,7 +5,7 @@ const port = process.env.PORT || 8080;
 const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require('cors');
-const stripe = require('stripe')('process.env.PAYMENT_SECRET_KEY');
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 
 
