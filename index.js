@@ -9,7 +9,6 @@ const cors = require('cors');
 // MIDDLEWARE:
 app.use(cors());
 app.use(express.json());
-// app.use(verifyJWT);
 
 // JWT:
 const verifyJWT = (req, res, next) => {
