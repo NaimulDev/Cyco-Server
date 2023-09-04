@@ -144,7 +144,7 @@ async function run() {
 
 
 // Payment intent Method: 
-app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+app.post("/create-payment-intent",  async (req, res) => {
   const { price } = req.body;
   const amount = price * 100;
 
