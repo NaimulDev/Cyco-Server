@@ -5,9 +5,7 @@ const port = process.env.PORT || 8080;
 const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require('cors');
-const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-
-
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // MIDDLEWARE:
 app.use(cors());
@@ -36,7 +34,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
 const client = new MongoClient(uri, {
@@ -53,6 +51,7 @@ async function run() {
     const moviesCollection = client.db('cyco').collection('movies');
     const userCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
+    const queryCollection = client.db('cyco').collection('forumQueries');
     // const wishlistCollection = client.db('cyco').collection('wishlist');
 
     app.post('/jwt', (req, res) => {
@@ -68,20 +67,19 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-        res.send(result)
-      }
-      catch (error) {
+        res.send(result);
+      } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // upload new movies 
+    // upload new movies
     app.post('/movies', async (req, res) => {
       try {
-        const movieData = req.body; 
+        const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
-        res.send(result)
-    
+        res.send(result);
+
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
@@ -93,9 +91,8 @@ async function run() {
       }
     });
 
-    // Series APi 
-
-    app.get('/series', verifyJWT, async(req,res)=>{
+    // SERIES:
+    app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
@@ -151,15 +148,6 @@ async function run() {
         const { user, movie } = req.body;
         console.log(user?.email);
 
-        // await userCollection.updateOne(
-        //   { email: user?.email },
-        //   { $addToSet: { wishlist: movie } }
-        // );
-
-        // const updatedWishlist = {
-        //   $addToSet: { wishlist: movie },
-        // };
-
         const wishlist = await userCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
@@ -179,69 +167,91 @@ async function run() {
       }
     });
 
+    // FORUM QUERIES:
+    app.post('/query', async (req, res) => {
+      try {
+        const { user, query } = req.body;
+        // console.log(user, query);
 
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
+        const querySlot = await userCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { querySlot: query } }
+        );
+        // console.log(querySlot);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-  console.log(price, amount)
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        // console.log(req.body);
 
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
+        const forumQueries = await queryCollection.insertOne(newQuery);
+        res.send(forumQueries);
+        // console.log(forumQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
+    app.get('/forumQueries', async (req, res) => {
+      try {
+        const fetchedQueries = await queryCollection.find().toArray();
+        // console.log(fetchedQueries);
+        res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
+    // Payment intent Method:
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
 
+      console.log(price, amount);
 
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
 
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
+    // Payment intent Method:
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
 
+      console.log(price, amount);
 
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
 
-
-
-
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
-
-  console.log(price, amount)
-
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-
-
-
-
-
-
-
-
-
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
     // CHECK SERVER CONNECTION:
     await client.db('admin').command({ ping: 1 });
@@ -250,10 +260,6 @@ app.post("/create-payment-intent",  async (req, res) => {
     // await client.close();
   }
 }
-
-
-
-
 
 run().catch(console.dir);
 
