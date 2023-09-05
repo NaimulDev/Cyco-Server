@@ -104,7 +104,7 @@ async function run() {
       }
     });
 
-    // USERS:
+    // USERS data there is Availble all info about User, :
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
@@ -150,15 +150,6 @@ async function run() {
       try {
         const { user, movie } = req.body;
         console.log(user?.email);
-
-        // await userCollection.updateOne(
-        //   { email: user?.email },
-        //   { $addToSet: { wishlist: movie } }
-        // );
-
-        // const updatedWishlist = {
-        //   $addToSet: { wishlist: movie },
-        // };
 
         const wishlist = await userCollection.updateOne(
           { email: user?.email },
