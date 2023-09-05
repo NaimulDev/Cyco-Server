@@ -102,7 +102,7 @@ async function run() {
       }
     });
 
-    // USERS data there is Availble all info about User, :
+    // USERS:
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
@@ -185,41 +185,6 @@ async function run() {
       }
     });
 
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
-
-  // console.log(price, amount)
-
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-
-
-
-
-// payment related API 
-app.post('/payments', async(req, res) => {
-
-const payment = req.body;
-const result = await paymentsCollection.insertOne(payment);
-res.send(result);
-
-
-})
-
     app.post('/forumQueries', async (req, res) => {
       try {
         const newQuery = req.body;
@@ -243,28 +208,6 @@ res.send(result);
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
-    });
-
-    // Payment intent Method:
-    app.post('/create-payment-intent', async (req, res) => {
-      const { price } = req.body;
-      const amount = price * 100;
-
-      console.log(price, amount);
-
-      // Create a PaymentIntent with the order amount and currency
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
-
-      res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
     });
 
     // Payment intent Method:
