@@ -7,6 +7,7 @@ const app = express();
 const cors = require("cors");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
+
 // MIDDLEWARE:
 app.use(cors());
 app.use(express.json());
@@ -34,7 +35,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
 const client = new MongoClient(uri, {
@@ -52,7 +53,7 @@ async function run() {
     const usersCollection = client.db("cyco").collection("users");
     const seriesCollection = client.db("cyco").collection("series");
     const paymentsCollection = client.db("cyco").collection("payments");
-    // const wishlistCollection = client.db('cyco').collection('wishlist');
+    const queryCollection = client.db('cyco').collection('forumQueries');
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -70,11 +71,13 @@ async function run() {
         res.send(result);
       } catch (error) {
         res.status(500).json({ error: "Internal server error" });
+
       }
     });
 
     // upload new movies
     app.post("/movies", async (req, res) => {
+
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
@@ -91,9 +94,9 @@ async function run() {
       }
     });
 
-    // Series APi
 
-    app.get("/series", verifyJWT, async (req, res) => {
+    // SERIES:
+    app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
@@ -120,8 +123,8 @@ async function run() {
       res.send(result);
     });
 
-    // USERS data there is Availble all info about User, :
-    app.get("/user/:email", async (req, res) => {
+    // USERS:
+    app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
         const userData = await usersCollection.findOne({ email });
@@ -241,6 +244,49 @@ async function run() {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
+      
+    // FORUM QUERIES:
+    app.post('/query', async (req, res) => {
+      try {
+        const { user, query } = req.body;
+        // console.log(user, query);
+
+        const querySlot = await userCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { querySlot: query } }
+        );
+        // console.log(querySlot);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        // console.log(req.body);
+
+        const forumQueries = await queryCollection.insertOne(newQuery);
+        res.send(forumQueries);
+        // console.log(forumQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/forumQueries', async (req, res) => {
+      try {
+        const fetchedQueries = await queryCollection.find().toArray();
+        // console.log(fetchedQueries);
+        res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
     });
 
     // CHECK SERVER CONNECTION:
