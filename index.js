@@ -49,7 +49,7 @@ async function run() {
   try {
     await client.connect();
     const moviesCollection = client.db('cyco').collection('movies');
-    const userCollection = client.db('cyco').collection('users');
+    const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
@@ -106,7 +106,7 @@ async function run() {
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
-        const userData = await userCollection.findOne({ email });
+        const userData = await usersCollection.findOne({ email });
         if (userData) {
           res.status(200).json(userData);
         } else {
@@ -122,13 +122,13 @@ async function run() {
         const { username, email, password, role, photoUrl } = req.body;
 
         // Check if the email is already registered
-        const existingUser = await userCollection.findOne({ email });
+        const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: 'Email already registered' });
         }
 
         // Create a new user document
-        await userCollection.insertOne({
+        await usersCollection.insertOne({
           username,
           role,
           email,
@@ -149,7 +149,7 @@ async function run() {
         const { user, movie } = req.body;
         console.log(user?.email);
 
-        const wishlist = await userCollection.updateOne(
+        const wishlist = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
@@ -174,7 +174,7 @@ async function run() {
         const { user, query } = req.body;
         // console.log(user, query);
 
-        const querySlot = await userCollection.updateOne(
+        const querySlot = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { querySlot: query } }
         );
