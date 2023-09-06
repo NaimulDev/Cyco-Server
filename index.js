@@ -53,7 +53,6 @@ async function run() {
     const seriesCollection = client.db('cyco').collection('series');
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
-    // const wishlistCollection = client.db('cyco').collection('wishlist');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
