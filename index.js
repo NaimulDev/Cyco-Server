@@ -49,6 +49,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
+
     const moviesCollection = client.db("cyco").collection("movies");
     const usersCollection = client.db("cyco").collection("users");
     const seriesCollection = client.db("cyco").collection("series");
@@ -251,7 +252,7 @@ async function run() {
         const { user, query } = req.body;
         // console.log(user, query);
 
-        const querySlot = await userCollection.updateOne(
+        const querySlot = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { querySlot: query } }
         );
