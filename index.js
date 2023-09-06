@@ -34,7 +34,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
 const client = new MongoClient(uri, {
@@ -51,8 +51,8 @@ async function run() {
     const moviesCollection = client.db("cyco").collection("movies");
     const usersCollection = client.db("cyco").collection("users");
     const seriesCollection = client.db("cyco").collection("series");
+    const queryCollection = client.db("cyco").collection("forumQueries");
     const paymentsCollection = client.db("cyco").collection("payments");
-    // const wishlistCollection = client.db('cyco').collection('wishlist');
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -67,18 +67,16 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-        res.send(result);
       } catch (error) {
         res.status(500).json({ error: "Internal server error" });
       }
     });
 
-    // upload new movies
+    // Upload new movies
     app.post("/movies", async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
-        res.send(result);
 
         if (result.insertedCount === 1) {
           res.status(201).json({ message: "Movie saved successfully" });
@@ -91,8 +89,7 @@ async function run() {
       }
     });
 
-    // Series APi
-
+    // Series API
     app.get("/series", verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
@@ -115,12 +112,7 @@ async function run() {
       next();
     };
 
-    app.get("/users", async (req, res) => {
-      const result = await usersCollection.find().toArray();
-      res.send(result);
-    });
-
-    // USERS data there is Availble all info about User, :
+    // USERS:
     app.get("/user/:email", async (req, res) => {
       try {
         const { email } = req.params;
@@ -161,7 +153,7 @@ async function run() {
       }
     });
 
-    // check admin
+    // Check admin
     app.get("/users/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -199,7 +191,6 @@ async function run() {
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
-        console.log(wishlist);
 
         if (wishlist.modifiedCount === 1) {
           res.status(200).json({ message: "Movie added to wishlist" });
@@ -214,12 +205,47 @@ async function run() {
       }
     });
 
+    // FORUM QUERIES:
+    app.post("/query", async (req, res) => {
+      try {
+        const { user, query } = req.body;
+
+        const querySlot = await userCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { querySlot: query } }
+        );
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    app.post("/forumQueries", async (req, res) => {
+      try {
+        const newQuery = req.body;
+
+        const forumQueries = await queryCollection.insertOne(newQuery);
+        res.send(forumQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    app.get("/forumQueries", async (req, res) => {
+      try {
+        const fetchedQueries = await queryCollection.find().toArray();
+        res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
     // Payment intent Method:
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
-
-      // console.log(price, amount)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
@@ -236,7 +262,7 @@ async function run() {
       });
     });
 
-    // payment related API
+    // Payment related API
     app.post("/payments", async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
@@ -245,7 +271,7 @@ async function run() {
 
     // CHECK SERVER CONNECTION:
     await client.db("admin").command({ ping: 1 });
-    console.log("Hey Dev! No pain No gain.. Successfully Connected MongoDb");
+    console.log("Hey Dev! No pain No gain.. Successfully Connected MongoDB");
   } finally {
     // await client.close();
   }
