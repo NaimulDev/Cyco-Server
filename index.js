@@ -275,48 +275,48 @@ app.put('history/:id', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
+    });
 
-      // FORUM QUERIES:
-      app.post('/query', async (req, res) => {
-        try {
-          const { user, query } = req.body;
-          // console.log(user, query);
+    // FORUM QUERIES:
+    app.post('/query', async (req, res) => {
+      try {
+        const { user, query } = req.body;
+        // console.log(user, query);
 
-          const querySlot = await usersCollection.updateOne(
-            { email: user?.email },
-            { $addToSet: { querySlot: query } }
-          );
-          // console.log(querySlot);
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ error: 'Internal server error' });
-        }
-      });
+        const querySlot = await usersCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { querySlot: query } }
+        );
+        // console.log(querySlot);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-      app.post('/forumQueries', async (req, res) => {
-        try {
-          const newQuery = req.body;
-          // console.log(req.body);
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        // console.log(req.body);
 
-          const forumQueries = await queryCollection.insertOne(newQuery);
-          res.send(forumQueries);
-          // console.log(forumQueries);
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ error: 'Internal server error' });
-        }
-      });
+        const forumQueries = await queryCollection.insertOne(newQuery);
+        res.send(forumQueries);
+        // console.log(forumQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-      app.get('/forumQueries', async (req, res) => {
-        try {
-          const fetchedQueries = await queryCollection.find().toArray();
-          // console.log(fetchedQueries);
-          res.status(200).json(fetchedQueries);
-        } catch (error) {
-          console.error(error);
-          res.status(500).json({ error: 'Internal server error' });
-        }
-      });
+    app.get('/forumQueries', async (req, res) => {
+      try {
+        const fetchedQueries = await queryCollection.find().toArray();
+        // console.log(fetchedQueries);
+        res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
     });
 
     // CHECK SERVER CONNECTION:
