@@ -4,8 +4,9 @@ require('dotenv').config();
 const port = process.env.PORT || 8080;
 const jwt = require('jsonwebtoken');
 const app = express();
-const cors = require('cors');
-const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
+const cors = require("cors");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
 
 // MIDDLEWARE:
 app.use(cors());
@@ -33,10 +34,13 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
+
 // DATABASE:
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -48,11 +52,12 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    const moviesCollection = client.db('cyco').collection('movies');
-    const usersCollection = client.db('cyco').collection('users');
-    const seriesCollection = client.db('cyco').collection('series');
-    const paymentsCollection = client.db('cyco').collection('payments');
-    const queryCollection = client.db('cyco').collection('forumQueries');
+    const moviesCollection = client.db("cyco").collection("movies");
+    const usersCollection = client.db("cyco").collection("users");
+    const seriesCollection = client.db("cyco").collection("series");
+    const queryCollection = client.db("cyco").collection("forumQueries");
+    const paymentsCollection = client.db("cyco").collection("payments");
+
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -67,18 +72,17 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-        res.send(result);
       } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
 
-    // upload new movies
-    app.post('/movies', async (req, res) => {
+    // Upload new movies
+    app.post("/movies", async (req, res) => {
+
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
-        res.send(result);
 
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
@@ -90,6 +94,7 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
 
     // SERIES:
     app.get('/series', verifyJWT, async (req, res) => {
@@ -114,13 +119,18 @@ async function run() {
       next();
     };
 
-    app.get('/users', async (req, res) => {
-      const result = await usersCollection.find().toArray();
-      res.send(result);
+    // USERS:
+    app.get("/users", async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+
     });
 
-    // USERS:
-    app.get('/user/:email', async (req, res) => {
+    app.get("/user/:email", async (req, res) => {
       try {
         const { email } = req.params;
         const userData = await usersCollection.findOne({ email });
@@ -134,7 +144,9 @@ async function run() {
       }
     });
 
-    app.post('/register', async (req, res) => {
+
+    app.post("/register", async (req, res) => {
+
       try {
         const { username, email, password, role, photoUrl } = req.body;
 
@@ -143,6 +155,7 @@ async function run() {
         if (existingUser) {
           return res.status(409).json({ error: 'Email already registered' });
         }
+
 
         // Create a new user document
         await usersCollection.insertOne({
@@ -159,9 +172,32 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+  // Update user data by ID
+app.put('history/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedUserData = req.body;
 
-    // check admin
-    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+    const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+      new: true, // Return the updated document
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
+    // Check admin
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -198,7 +234,6 @@ async function run() {
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
-        console.log(wishlist);
 
         if (wishlist.modifiedCount === 1) {
           res.status(200).json({ message: 'Movie added to wishlist' });
