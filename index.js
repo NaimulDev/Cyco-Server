@@ -51,8 +51,8 @@ async function run() {
     const moviesCollection = client.db('cyco').collection('movies');
     const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
-    const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
+    const queryCollection = client.db('cyco').collection('forumQueries');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -101,6 +101,24 @@ async function run() {
       }
     });
 
+    // Warning: use verifyJWT before using verifyAdmin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res
+          .status(403)
+          .send({ error: true, message: 'forbidden message' });
+      }
+      next();
+    };
+
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
     // USERS:
     app.get('/user/:email', async (req, res) => {
       try {
@@ -142,6 +160,34 @@ async function run() {
       }
     });
 
+    // check admin
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' };
+      res.send(result);
+    });
+
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin',
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // WISHLIST:
     app.post('/wishlist', async (req, res) => {
       try {
@@ -167,54 +213,12 @@ async function run() {
       }
     });
 
-    // FORUM QUERIES:
-    app.post('/query', async (req, res) => {
-      try {
-        const { user, query } = req.body;
-        // console.log(user, query);
-
-        const querySlot = await usersCollection.updateOne(
-          { email: user?.email },
-          { $addToSet: { querySlot: query } }
-        );
-        // console.log(querySlot);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.post('/forumQueries', async (req, res) => {
-      try {
-        const newQuery = req.body;
-        // console.log(req.body);
-
-        const forumQueries = await queryCollection.insertOne(newQuery);
-        res.send(forumQueries);
-        // console.log(forumQueries);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.get('/forumQueries', async (req, res) => {
-      try {
-        const fetchedQueries = await queryCollection.find().toArray();
-        // console.log(fetchedQueries);
-        res.status(200).json(fetchedQueries);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
     // Payment intent Method:
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
 
-      console.log(price, amount);
+      // console.log(price, amount)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
@@ -228,6 +232,55 @@ async function run() {
 
       res.send({
         clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    // payment related API
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const result = await paymentsCollection.insertOne(payment);
+      res.send(result);
+
+      // FORUM QUERIES:
+      app.post('/query', async (req, res) => {
+        try {
+          const { user, query } = req.body;
+          // console.log(user, query);
+
+          const querySlot = await usersCollection.updateOne(
+            { email: user?.email },
+            { $addToSet: { querySlot: query } }
+          );
+          // console.log(querySlot);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
+
+      app.post('/forumQueries', async (req, res) => {
+        try {
+          const newQuery = req.body;
+          // console.log(req.body);
+
+          const forumQueries = await queryCollection.insertOne(newQuery);
+          res.send(forumQueries);
+          // console.log(forumQueries);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
+
+      app.get('/forumQueries', async (req, res) => {
+        try {
+          const fetchedQueries = await queryCollection.find().toArray();
+          // console.log(fetchedQueries);
+          res.status(200).json(fetchedQueries);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
       });
     });
 
