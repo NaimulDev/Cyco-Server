@@ -1,11 +1,12 @@
-const express = require("express");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-require("dotenv").config();
+const express = require('express');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
 const port = process.env.PORT || 8080;
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require("cors");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
 
 // MIDDLEWARE:
 app.use(cors());
@@ -17,16 +18,16 @@ const verifyJWT = (req, res, next) => {
   if (!authorization) {
     return res
       .status(401)
-      .send({ error: true, message: "unauthorized access" });
+      .send({ error: true, message: 'unauthorized access' });
   }
   // bearer token
-  const token = authorization.split(" ")[1];
+  const token = authorization.split(' ')[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       return res
         .status(401)
-        .send({ error: true, message: "unauthorized access" });
+        .send({ error: true, message: 'unauthorized access' });
     }
     req.decoded = decoded;
     next();
@@ -57,16 +58,17 @@ async function run() {
     const queryCollection = client.db("cyco").collection("forumQueries");
     const paymentsCollection = client.db("cyco").collection("payments");
 
-    app.post("/jwt", (req, res) => {
+
+    app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "24h",
+        expiresIn: '24h',
       });
       res.send({ token });
     });
 
     // MOVIES:
-    app.get("/movies", async (req, res) => {
+    app.get('/movies', async (req, res) => {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
@@ -77,28 +79,30 @@ async function run() {
 
     // Upload new movies
     app.post("/movies", async (req, res) => {
+
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
 
         if (result.insertedCount === 1) {
-          res.status(201).json({ message: "Movie saved successfully" });
+          res.status(201).json({ message: 'Movie saved successfully' });
         } else {
-          res.status(500).json({ error: "Failed to save the movie" });
+          res.status(500).json({ error: 'Failed to save the movie' });
         }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // Series API
-    app.get("/series", verifyJWT, async (req, res) => {
+
+    // SERIES:
+    app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: 'Internal Server Error' });
       }
     });
 
@@ -107,10 +111,10 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      if (user?.role !== "admin") {
+      if (user?.role !== 'admin') {
         return res
           .status(403)
-          .send({ error: true, message: "forbidden message" });
+          .send({ error: true, message: 'forbidden message' });
       }
       next();
     };
@@ -123,6 +127,7 @@ async function run() {
       } catch (error) {
         res.status(500).json({ error: "Internal server error" });
       }
+
     });
 
     app.get("/user/:email", async (req, res) => {
@@ -132,23 +137,23 @@ async function run() {
         if (userData) {
           res.status(200).json(userData);
         } else {
-          res.status(404).json({ error: "User not found" });
+          res.status(404).json({ error: 'User not found' });
         }
       } catch (error) {
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
 
-    app.post('/register', async (req, res) => {
     app.post("/register", async (req, res) => {
+
       try {
         const { username, email, password, role, photoUrl } = req.body;
 
         // Check if the email is already registered
         const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
-          return res.status(409).json({ error: "Email already registered" });
+          return res.status(409).json({ error: 'Email already registered' });
         }
 
 
@@ -162,9 +167,9 @@ async function run() {
           wishlist: [],
         });
 
-        res.status(201).json({ message: "User registered successfully" });
+        res.status(201).json({ message: 'User registered successfully' });
       } catch (error) {
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
   // Update user data by ID
@@ -192,6 +197,7 @@ app.put('history/:id', async (req, res) => {
 
     // Check admin
     app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -200,17 +206,17 @@ app.put('history/:id', async (req, res) => {
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === "admin" };
+      const result = { admin: user?.role === 'admin' };
       res.send(result);
     });
 
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: "admin",
+          role: 'admin',
         },
       };
 
@@ -219,7 +225,7 @@ app.put('history/:id', async (req, res) => {
     });
 
     // WISHLIST:
-    app.post("/wishlist", async (req, res) => {
+    app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
         console.log(user?.email);
@@ -230,64 +236,29 @@ app.put('history/:id', async (req, res) => {
         );
 
         if (wishlist.modifiedCount === 1) {
-          res.status(200).json({ message: "Movie added to wishlist" });
+          res.status(200).json({ message: 'Movie added to wishlist' });
         } else if (wishlist.matchedCount === 1) {
-          res.status(403).json({ message: "Already added to wishlist" });
+          res.status(403).json({ message: 'Already added to wishlist' });
         } else {
-          res.status(404).json({ error: "User not found" });
+          res.status(404).json({ error: 'User not found' });
         }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-
-    // FORUM QUERIES:
-    app.post("/query", async (req, res) => {
-      try {
-        const { user, query } = req.body;
-
-        const querySlot = await userCollection.updateOne(
-          { email: user?.email },
-          { $addToSet: { querySlot: query } }
-        );
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-
-    app.post("/forumQueries", async (req, res) => {
-      try {
-        const newQuery = req.body;
-
-        const forumQueries = await queryCollection.insertOne(newQuery);
-        res.send(forumQueries);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
-      }
-    });
-
-    app.get("/forumQueries", async (req, res) => {
-      try {
-        const fetchedQueries = await queryCollection.find().toArray();
-        res.status(200).json(fetchedQueries);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
     // Payment intent Method:
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
+
+      // console.log(price, amount)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
-        currency: "usd",
+        currency: 'usd',
         // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
         automatic_payment_methods: {
           enabled: true,
@@ -299,16 +270,58 @@ app.put('history/:id', async (req, res) => {
       });
     });
 
-    // Payment related API
-    app.post("/payments", async (req, res) => {
+    // payment related API
+    app.post('/payments', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
+
+      // FORUM QUERIES:
+      app.post('/query', async (req, res) => {
+        try {
+          const { user, query } = req.body;
+          // console.log(user, query);
+
+          const querySlot = await usersCollection.updateOne(
+            { email: user?.email },
+            { $addToSet: { querySlot: query } }
+          );
+          // console.log(querySlot);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
+
+      app.post('/forumQueries', async (req, res) => {
+        try {
+          const newQuery = req.body;
+          // console.log(req.body);
+
+          const forumQueries = await queryCollection.insertOne(newQuery);
+          res.send(forumQueries);
+          // console.log(forumQueries);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
+
+      app.get('/forumQueries', async (req, res) => {
+        try {
+          const fetchedQueries = await queryCollection.find().toArray();
+          // console.log(fetchedQueries);
+          res.status(200).json(fetchedQueries);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal server error' });
+        }
+      });
     });
 
     // CHECK SERVER CONNECTION:
-    await client.db("admin").command({ ping: 1 });
-    console.log("Hey Dev! No pain No gain.. Successfully Connected MongoDB");
+    await client.db('admin').command({ ping: 1 });
+    console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
     // await client.close();
   }
@@ -316,8 +329,8 @@ app.put('history/:id', async (req, res) => {
 
 run().catch(console.dir);
 
-app.get("/", (req, res) => {
-  res.send("cyco-engine");
+app.get('/', (req, res) => {
+  res.send('cyco-engine');
 });
 
 app.listen(port, () => {
