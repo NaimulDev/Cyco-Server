@@ -113,6 +113,15 @@ async function run() {
     };
 
     // USERS:
+    app.get("/users", async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
     app.get("/user/:email", async (req, res) => {
       try {
         const { email } = req.params;
