@@ -1,17 +1,75 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
-const port = process.env.PORT || 8080;
-const jwt = require('jsonwebtoken');
 const app = express();
+
 const cors = require('cors');
-const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-
-
+const port = process.env.PORT || 8080;
 
 // MIDDLEWARE:
 app.use(cors());
 app.use(express.json());
+
+// socket-connection
+const http = require('http');
+const {Server} = require('socket.io')
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User Disconnected: ${socket.id}`);
+  });
+
+  socket.on('send_notification', (data) => {
+    console.log(data);
+    // Emit the received notification to all connected clients except the sender
+    socket.broadcast.emit('receive_notification', data);
+  });
+});
+
+// Error handling middleware (for unhandled errors)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
+
+
+
+
+
+
+
+// Define a custom error handler middleware
+
 
 // JWT:
 const verifyJWT = (req, res, next) => {
@@ -46,6 +104,10 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+
+
+
 
 async function run() {
   try {
@@ -223,12 +285,6 @@ res.send(result);
 
 
 
-
-
-
-
-
-
     // CHECK SERVER CONNECTION:
     await client.db('admin').command({ ping: 1 });
     console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
@@ -244,6 +300,11 @@ app.get('/', (req, res) => {
   res.send('cyco-engine');
 });
 
-app.listen(port, () => {
-  console.log(`CYCO engine running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`CYCO engine running on port ${port}`);
+// });
+
+server.listen(8080, () => {
+  console.log('SERVER IS RUNNING ON PORT 8080');
+})
+
