@@ -1,16 +1,65 @@
 const express = require('express');
-const app = express();
-
 const cors = require('cors');
 const port = process.env.PORT || 8080;
+const app = express();
+const jwt = require('jsonwebtoken');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
 
-// MIDDLEWARE:
+// Error handling middleware (for unhandled errors)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
+});
+
+// MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
 
-// socket-connection
+// CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
+
+// JWT:----------------------->>>>
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: 'unauthorized access' });
+  }
+  // bearer token
+  const token = authorization.split(' ')[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: 'unauthorized access' });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
+
+// DATABASE:----------------------->>>>
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+
+// CREATE MONGO-CLIENT:----------------------->>>>
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
+// SOCKET-CONNECTION:----------------------->>>>
 const http = require('http');
-const {Server} = require('socket.io')
+const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -34,89 +83,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// Error handling middleware (for unhandled errors)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something went wrong!');
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
-const jwt = require('jsonwebtoken');
-const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-
-
-
-
-
-
-
-
-// Define a custom error handler middleware
-
-
-// JWT:
-const verifyJWT = (req, res, next) => {
-  const authorization = req.headers.authorization;
-  if (!authorization) {
-    return res
-      .status(401)
-      .send({ error: true, message: 'unauthorized access' });
-  }
-  // bearer token
-  const token = authorization.split(' ')[1];
-
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      return res
-        .status(401)
-        .send({ error: true, message: 'unauthorized access' });
-    }
-    req.decoded = decoded;
-    next();
-  });
-};
-
-// DATABASE:
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wndd9z6.mongodb.net/?retryWrites=true&w=majority`;
-
-// CREATE MONGO-CLIENT:
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
-
-
-
-
 async function run() {
   try {
     await client.connect();
     const moviesCollection = client.db('cyco').collection('movies');
-    const userCollection = client.db('cyco').collection('users');
+    const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
+    const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
-    // const wishlistCollection = client.db('cyco').collection('wishlist');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -126,22 +100,19 @@ async function run() {
       res.send({ token });
     });
 
-    // MOVIES:
+    // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-        res.send(result)
-      }
-      catch (error) {
+      } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // upload new movies 
     app.post('/movies', async (req, res) => {
       try {
-        const movieData = req.body; 
+        const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
         // res.send(result)
     
@@ -156,9 +127,8 @@ async function run() {
       }
     });
 
-    // Series APi 
-
-    app.get('/series', verifyJWT, async(req,res)=>{
+    // SERIES:----------------------->>>>
+    app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
@@ -167,11 +137,33 @@ async function run() {
       }
     });
 
-    // USERS:
+    // Warning: use verifyJWT before using verifyAdmin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res
+          .status(403)
+          .send({ error: true, message: 'forbidden message' });
+      }
+      next();
+    };
+
+    // USERS:----------------------->>>>
+    app.get('/users', async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
-        const userData = await userCollection.findOne({ email });
+        const userData = await usersCollection.findOne({ email });
         if (userData) {
           res.status(200).json(userData);
         } else {
@@ -187,13 +179,13 @@ async function run() {
         const { username, email, password, role, photoUrl } = req.body;
 
         // Check if the email is already registered
-        const existingUser = await userCollection.findOne({ email });
+        const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
           return res.status(409).json({ error: 'Email already registered' });
         }
 
         // Create a new user document
-        await userCollection.insertOne({
+        await usersCollection.insertOne({
           username,
           role,
           email,
@@ -208,26 +200,64 @@ async function run() {
       }
     });
 
-    // WISHLIST:
+    app.put('/history/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedUserData = req.body;
+
+        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+          new: true, // Return the updated document
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(updatedUser);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    // Check admin
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' };
+      res.send(result);
+    });
+
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin',
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    // WISHLIST----------------------->>>>
     app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
         console.log(user?.email);
 
-        // await userCollection.updateOne(
-        //   { email: user?.email },
-        //   { $addToSet: { wishlist: movie } }
-        // );
-
-        // const updatedWishlist = {
-        //   $addToSet: { wishlist: movie },
-        // };
-
-        const wishlist = await userCollection.updateOne(
+        const wishlist = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
-        console.log(wishlist);
 
         if (wishlist.modifiedCount === 1) {
           res.status(200).json({ message: 'Movie added to wishlist' });
@@ -242,50 +272,74 @@ async function run() {
       }
     });
 
+    // PAYMENT:----------------------->>>>
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      const amount = price * 100;
 
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
 
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
-  // console.log(price, amount)
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const result = await paymentsCollection.insertOne(payment);
+      res.send(result);
+    });
 
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
+    // FORUM QUERIES:----------------------->>>>
+    app.post('/query', async (req, res) => {
+      try {
+        const { user, query } = req.body;
+        // console.log(user, query);
 
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
+        const querySlot = await usersCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { querySlot: query } }
+        );
+        // console.log(querySlot);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
+    // FORUM:----------------------->>>>
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        // console.log(req.body);
 
+        const forumQueries = await queryCollection.insertOne(newQuery);
+        res.send(forumQueries);
+        // console.log(forumQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
+    app.get('/forumQueries', async (req, res) => {
+      try {
+        const fetchedQueries = await queryCollection.find().toArray();
+        // console.log(fetchedQueries);
+        res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
-// payment related API 
-app.post('/payments', async(req, res) => {
-
-const payment = req.body;
-const result = await paymentsCollection.insertOne(payment);
-res.send(result);
-
-
-})
-
-
-
-
-
-
-
-    // CHECK SERVER CONNECTION:
+    // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
     console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
@@ -293,18 +347,12 @@ res.send(result);
   }
 }
 
-
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
   res.send('cyco-engine');
 });
 
-// app.listen(port, () => {
-//   console.log(`CYCO engine running on port ${port}`);
-// });
-
-server.listen(8080, () => {
-  console.log('SERVER IS RUNNING ON PORT 8080');
-})
-
+server.listen(port, () => {
+  console.log(`SERVER IS RUNNING ON PORT ${port}`);
+});
