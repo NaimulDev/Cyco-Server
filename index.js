@@ -3,6 +3,8 @@ const cors = require('cors');
 const port = process.env.PORT || 8080;
 const app = express();
 const jwt = require('jsonwebtoken');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
 
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
@@ -10,8 +12,6 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
@@ -42,7 +42,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:----------------------->>>>
-const uri = `mongodb+srv://${ process.env.DB_USER }:${ process.env.DB_PASS }@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
@@ -110,8 +110,7 @@ async function run() {
       }
     });
 
-    // Upload new movies
-    app.post("/movies", async (req, res) => {
+    app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
@@ -150,17 +149,16 @@ async function run() {
     };
 
     // USERS:----------------------->>>>
-    app.get("/users", async (req, res) => {
+    app.get('/users', async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
-
     });
 
-    app.get("/user/:email", async (req, res) => {
+    app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
         const userData = await usersCollection.findOne({ email });
@@ -200,7 +198,6 @@ async function run() {
       }
     });
 
-    // Update user data by ID
     app.put('/history/:id', async (req, res) => {
       try {
         const { id } = req.params;
@@ -222,7 +219,7 @@ async function run() {
     });
 
     // Check admin
-    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -277,9 +274,7 @@ async function run() {
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
-      // console.log(price, amount)
 
-      // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
@@ -293,29 +288,7 @@ async function run() {
       });
     });
 
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
-  // console.log(price, amount)
-
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-
-    // payment related API
-    app.post( '/payments', async ( req, res ) => {
+    app.post('/payments', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
