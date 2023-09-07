@@ -1,8 +1,73 @@
 const express = require('express');
+const app = express();
+
+const cors = require('cors');
+const port = process.env.PORT || 8080;
+
+// MIDDLEWARE:
+app.use(cors());
+app.use(express.json());
+
+// socket-connection
+const http = require('http');
+const {Server} = require('socket.io')
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User Disconnected: ${socket.id}`);
+  });
+
+  socket.on('send_notification', (data) => {
+    console.log(data);
+    // Emit the received notification to all connected clients except the sender
+    socket.broadcast.emit('receive_notification', data);
+  });
+});
+
+// Error handling middleware (for unhandled errors)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-const port = process.env.PORT || 8080;
 const jwt = require('jsonwebtoken');
+
+
+
+
+
+
+
+
+// Define a custom error handler middleware
 const app = express();
 const cors = require("cors");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
@@ -48,6 +113,10 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+
+
+
 
 async function run() {
   try {
@@ -270,6 +339,46 @@ app.put('history/:id', async (req, res) => {
       });
     });
 
+// Payment intent Method: 
+app.post("/create-payment-intent",  async (req, res) => {
+  const { price } = req.body;
+  const amount = price * 100;
+
+  // console.log(price, amount)
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
+
+
+
+
+// // payment related API 
+// app.post('/payments', async(req, res) => {
+
+// const payment = req.body;
+// const result = await paymentsCollection.insertOne(payment);
+// res.send(result);
+
+
+// })
+
+
+
+
+
+
     // payment related API
     app.post('/payments', async (req, res) => {
       const payment = req.body;
@@ -333,6 +442,11 @@ app.get('/', (req, res) => {
   res.send('cyco-engine');
 });
 
-app.listen(port, () => {
-  console.log(`CYCO engine running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`CYCO engine running on port ${port}`);
+// });
+
+server.listen(8080, () => {
+  console.log('SERVER IS RUNNING ON PORT 8080');
+})
+
