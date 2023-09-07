@@ -68,8 +68,8 @@ const jwt = require('jsonwebtoken');
 
 
 // Define a custom error handler middleware
-const app = express();
-const cors = require("cors");
+// const app = express(); 
+// const cors = require("cors");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 
