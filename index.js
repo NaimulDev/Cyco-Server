@@ -73,11 +73,11 @@ const jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 
-// MIDDLEWARE:
+// MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
 
-// JWT:
+// JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -99,8 +99,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-
-// DATABASE:
+// DATABASE:----------------------->>>>
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -136,7 +135,7 @@ async function run() {
       res.send({ token });
     });
 
-    // MOVIES:
+    // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
       try {
         const result = await moviesCollection.find().toArray();
@@ -146,13 +145,13 @@ async function run() {
       }
     });
 
+
     // Upload new movies
     app.post("/movies", async (req, res) => {
 
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
-
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
@@ -164,8 +163,7 @@ async function run() {
       }
     });
 
-
-    // SERIES:
+    // SERIES:----------------------->>>>
     app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
@@ -188,7 +186,7 @@ async function run() {
       next();
     };
 
-    // USERS:
+    // USERS:----------------------->>>>
     app.get("/users", async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
@@ -266,7 +264,6 @@ app.put('history/:id', async (req, res) => {
 
     // Check admin
     app.get("/users/admin/:email", verifyJWT, async (req, res) => {
-
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -293,7 +290,7 @@ app.put('history/:id', async (req, res) => {
       res.send(result);
     });
 
-    // WISHLIST:
+    // WISHLIST----------------------->>>>
     app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
@@ -304,31 +301,30 @@ app.put('history/:id', async (req, res) => {
           { $addToSet: { wishlist: movie } }
         );
 
-        if (wishlist.modifiedCount === 1) {
-          res.status(200).json({ message: 'Movie added to wishlist' });
-        } else if (wishlist.matchedCount === 1) {
-          res.status(403).json({ message: 'Already added to wishlist' });
-        } else {
-          res.status(404).json({ error: 'User not found' });
-        }
+        // if (wishlist.modifiedCount === 1) {
+        //   res.status(200).json({ message: 'Movie added to wishlist' });
+        // }
+        // else if ( wishlist.matchedCount === 1 ) {
+        //   res.status(403).json({ message: 'Already added to wishlist' });
+        // } else {
+        //   res.status(404).json({ error: 'User not found' });
+        // }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // Payment intent Method:
+    // PAYMENT:----------------------->>>>
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
-
       // console.log(price, amount)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
-        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
         automatic_payment_methods: {
           enabled: true,
         },
@@ -339,11 +335,11 @@ app.put('history/:id', async (req, res) => {
       });
     });
 
+
 // Payment intent Method: 
 app.post("/create-payment-intent",  async (req, res) => {
   const { price } = req.body;
   const amount = price * 100;
-
   // console.log(price, amount)
 
   // Create a PaymentIntent with the order amount and currency
@@ -361,24 +357,6 @@ app.post("/create-payment-intent",  async (req, res) => {
   });
 });
 
-
-
-
-// // payment related API 
-// app.post('/payments', async(req, res) => {
-
-// const payment = req.body;
-// const result = await paymentsCollection.insertOne(payment);
-// res.send(result);
-
-
-// })
-
-
-
-
-
-
     // payment related API
     app.post('/payments', async (req, res) => {
       const payment = req.body;
@@ -386,7 +364,7 @@ app.post("/create-payment-intent",  async (req, res) => {
       res.send(result);
     });
 
-    // FORUM QUERIES:
+    // FORUM QUERIES:----------------------->>>>
     app.post('/query', async (req, res) => {
       try {
         const { user, query } = req.body;
@@ -403,6 +381,7 @@ app.post("/create-payment-intent",  async (req, res) => {
       }
     });
 
+    // FORUM:----------------------->>>>
     app.post('/forumQueries', async (req, res) => {
       try {
         const newQuery = req.body;
@@ -428,7 +407,7 @@ app.post("/create-payment-intent",  async (req, res) => {
       }
     });
 
-    // CHECK SERVER CONNECTION:
+    // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
     console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
