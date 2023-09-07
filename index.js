@@ -12,6 +12,23 @@ app.use((err, req, res, next) => {
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+<<<<<<< HEAD
+=======
+const jwt = require('jsonwebtoken');
+
+
+
+
+
+
+
+
+// Define a custom error handler middleware
+// const app = express(); 
+// const cors = require("cors");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
+>>>>>>> ddd5db607d7a09876a75244e55473e2aa009ffaa
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
@@ -43,6 +60,10 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:----------------------->>>>
+<<<<<<< HEAD
+=======
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+>>>>>>> ddd5db607d7a09876a75244e55473e2aa009ffaa
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
@@ -109,12 +130,22 @@ async function run() {
       }
     });
 
+<<<<<<< HEAD
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
         // res.send(result);
 
+=======
+
+    // Upload new movies
+    app.post("/movies", async (req, res) => {
+
+      try {
+        const movieData = req.body;
+        const result = await moviesCollection.insertOne(movieData);
+>>>>>>> ddd5db607d7a09876a75244e55473e2aa009ffaa
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
@@ -150,12 +181,26 @@ async function run() {
     };
 
     // USERS:----------------------->>>>
+<<<<<<< HEAD
     app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
     app.get('/user/:email', async (req, res) => {
+=======
+    app.get("/users", async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+
+    });
+
+    app.get("/user/:email", async (req, res) => {
+>>>>>>> ddd5db607d7a09876a75244e55473e2aa009ffaa
       try {
         const { email } = req.params;
         const userData = await usersCollection.findOne({ email });
@@ -217,7 +262,7 @@ async function run() {
     });
 
     // Check admin
-    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -288,7 +333,29 @@ async function run() {
       });
     });
 
-    app.post('/payments', async (req, res) => {
+// Payment intent Method: 
+app.post("/create-payment-intent",  async (req, res) => {
+  const { price } = req.body;
+  const amount = price * 100;
+  // console.log(price, amount)
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: "usd",
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
+
+    // payment related API
+    app.post( '/payments', async ( req, res ) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
