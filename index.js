@@ -12,24 +12,6 @@ app.use((err, req, res, next) => {
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-<<<<<<< HEAD
-=======
-const jwt = require('jsonwebtoken');
-
-
-
-
-
-
-
-
-// Define a custom error handler middleware
-// const app = express(); 
-// const cors = require("cors");
-const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-
->>>>>>> ddd5db607d7a09876a75244e55473e2aa009ffaa
-
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
