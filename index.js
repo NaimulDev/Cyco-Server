@@ -7,11 +7,11 @@ const app = express();
 const cors = require('cors');
 const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
-// MIDDLEWARE:
+// MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
 
-// JWT:
+// JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -33,7 +33,7 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-// DATABASE:
+// DATABASE:----------------------->>>>
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:
@@ -62,7 +62,7 @@ async function run() {
       res.send({ token });
     });
 
-    // MOVIES:
+    // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
       try {
         const result = await moviesCollection.find().toArray();
@@ -73,12 +73,11 @@ async function run() {
       }
     });
 
-    // upload new movies
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
-        res.send(result);
+        // res.send(result);
 
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
@@ -91,7 +90,7 @@ async function run() {
       }
     });
 
-    // SERIES:
+    // SERIES:----------------------->>>>
     app.get('/series', verifyJWT, async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
@@ -114,12 +113,12 @@ async function run() {
       next();
     };
 
+    // USERS:----------------------->>>>
     app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
-    // USERS:
     app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
@@ -160,7 +159,6 @@ async function run() {
       }
     });
 
-    // check admin
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -188,7 +186,7 @@ async function run() {
       res.send(result);
     });
 
-    // WISHLIST:
+    // WISHLIST----------------------->>>>
     app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
@@ -200,31 +198,30 @@ async function run() {
         );
         console.log(wishlist);
 
-        if (wishlist.modifiedCount === 1) {
-          res.status(200).json({ message: 'Movie added to wishlist' });
-        } else if (wishlist.matchedCount === 1) {
-          res.status(403).json({ message: 'Already added to wishlist' });
-        } else {
-          res.status(404).json({ error: 'User not found' });
-        }
+        // if (wishlist.modifiedCount === 1) {
+        //   res.status(200).json({ message: 'Movie added to wishlist' });
+        // }
+        // else if ( wishlist.matchedCount === 1 ) {
+        //   res.status(403).json({ message: 'Already added to wishlist' });
+        // } else {
+        //   res.status(404).json({ error: 'User not found' });
+        // }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
 
-    // Payment intent Method:
+    // PAYMENT:----------------------->>>>
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
-
       // console.log(price, amount)
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
-        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
         automatic_payment_methods: {
           enabled: true,
         },
@@ -235,14 +232,13 @@ async function run() {
       });
     });
 
-    // payment related API
     app.post('/payments', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
     });
 
-    // FORUM QUERIES:
+    // FORUM QUERIES:----------------------->>>>
     app.post('/query', async (req, res) => {
       try {
         const { user, query } = req.body;
@@ -259,6 +255,7 @@ async function run() {
       }
     });
 
+    // FORUM:----------------------->>>>
     app.post('/forumQueries', async (req, res) => {
       try {
         const newQuery = req.body;
@@ -284,7 +281,7 @@ async function run() {
       }
     });
 
-    // CHECK SERVER CONNECTION:
+    // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
     console.log('Hey Dev! No pain No gain.. Successfully Connected MongoDb');
   } finally {
