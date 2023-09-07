@@ -1,15 +1,24 @@
 const express = require('express');
+const cors = require('cors');
+const port = process.env.PORT || 8080;
+const app = express();
+const jwt = require('jsonwebtoken');
+
+// Error handling middleware (for unhandled errors)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
+});
+
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-const port = process.env.PORT || 8080;
-const jwt = require('jsonwebtoken');
-const app = express();
-const cors = require('cors');
-const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
+
+// CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
@@ -36,7 +45,9 @@ const verifyJWT = (req, res, next) => {
 // DATABASE:----------------------->>>>
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
-// CREATE MONGO-CLIENT:
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+
+// CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -45,14 +56,40 @@ const client = new MongoClient(uri, {
   },
 });
 
+// SOCKET-CONNECTION:----------------------->>>>
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User Disconnected: ${socket.id}`);
+  });
+
+  socket.on('send_notification', (data) => {
+    console.log(data);
+    // Emit the received notification to all connected clients except the sender
+    socket.broadcast.emit('receive_notification', data);
+  });
+});
+
 async function run() {
   try {
     await client.connect();
     const moviesCollection = client.db('cyco').collection('movies');
     const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
-    const paymentsCollection = client.db('cyco').collection('payments');
     const queryCollection = client.db('cyco').collection('forumQueries');
+    const paymentsCollection = client.db('cyco').collection('payments');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -67,7 +104,6 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
-        res.send(result);
       } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
@@ -159,6 +195,28 @@ async function run() {
       }
     });
 
+    // Update user data by ID
+    app.put('/history/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedUserData = req.body;
+
+        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+          new: true, // Return the updated document
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(updatedUser);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    // Check admin
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -196,16 +254,14 @@ async function run() {
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
-        console.log(wishlist);
 
-        // if (wishlist.modifiedCount === 1) {
-        //   res.status(200).json({ message: 'Movie added to wishlist' });
-        // }
-        // else if ( wishlist.matchedCount === 1 ) {
-        //   res.status(403).json({ message: 'Already added to wishlist' });
-        // } else {
-        //   res.status(404).json({ error: 'User not found' });
-        // }
+        if (wishlist.modifiedCount === 1) {
+          res.status(200).json({ message: 'Movie added to wishlist' });
+        } else if (wishlist.matchedCount === 1) {
+          res.status(403).json({ message: 'Already added to wishlist' });
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -295,6 +351,6 @@ app.get('/', (req, res) => {
   res.send('cyco-engine');
 });
 
-app.listen(port, () => {
-  console.log(`CYCO engine running on port ${port}`);
+server.listen(port, () => {
+  console.log(`SERVER IS RUNNING ON PORT ${port}`);
 });
