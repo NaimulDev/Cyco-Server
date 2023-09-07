@@ -143,7 +143,7 @@ async function run() {
       try {
         const movieData = req.body; 
         const result = await moviesCollection.insertOne(movieData);
-        res.send(result)
+        // res.send(result)
     
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
