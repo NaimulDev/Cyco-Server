@@ -55,6 +55,9 @@ const client = new MongoClient(uri, {
     strict: true,
     deprecationErrors: true,
   },
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  maxPoolSize: 10,
 });
 
 // SOCKET-CONNECTION:----------------------->>>>
@@ -63,7 +66,8 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    // origin: 'http://localhost:5173',
+    origin: 'https://cyco-inc.netlify.app',
     methods: ['GET', 'POST'],
   },
 });
@@ -96,7 +100,13 @@ const verifyAdmin = async (req, res, next) => {
 
 async function run() {
   try {
-    await client.connect();
+    client.connect((error) => {
+      if (error) {
+        console.log(error);
+        return;
+      }
+    });
+
     const moviesCollection = client.db('cyco').collection('movies');
     const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
