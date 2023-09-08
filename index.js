@@ -3,6 +3,8 @@ const cors = require('cors');
 const port = process.env.PORT || 8080;
 const app = express();
 const jwt = require('jsonwebtoken');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
 
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
@@ -13,21 +15,7 @@ app.use((err, req, res, next) => {
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
-
-
-
-
-
-
-
-
-
-// Define a custom error handler middleware
-// const app = express(); 
-// const cors = require("cors");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
-
-
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
@@ -59,9 +47,7 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:----------------------->>>>
-// const uri = `mongodb+srv://${ process.env.DB_USER }:${ process.env.DB_PASS }@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
-
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
@@ -72,6 +58,9 @@ const client = new MongoClient(uri, {
     strict: true,
     deprecationErrors: true,
   },
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  maxPoolSize: 10,
 });
 
 // SOCKET-CONNECTION:----------------------->>>>
@@ -80,7 +69,8 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
+    // origin: 'http://localhost:5173',
+    origin: 'https://cyco-inc.netlify.app',
     methods: ['GET', 'POST'],
   },
 });
@@ -100,9 +90,26 @@ io.on('connection', (socket) => {
   });
 });
 
+// Warning: use verifyJWT before using verifyAdmin
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email };
+  const user = await usersCollection.findOne(query);
+  if (user?.role !== 'admin') {
+    return res.status(403).send({ error: true, message: 'forbidden message' });
+  }
+  next();
+};
+
 async function run() {
   try {
-    await client.connect();
+    client.connect((error) => {
+      if (error) {
+        console.log(error);
+        return;
+      }
+    });
+
     const moviesCollection = client.db('cyco').collection('movies');
     const usersCollection = client.db('cyco').collection('users');
     const seriesCollection = client.db('cyco').collection('series');
@@ -128,11 +135,12 @@ async function run() {
       }
     });
 
-    // Upload new movies
-    app.post("/movies", async (req, res) => {
+    app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
+        // res.send(result)
+    
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
@@ -154,31 +162,17 @@ async function run() {
       }
     });
 
-    // Warning: use verifyJWT before using verifyAdmin
-    const verifyAdmin = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== 'admin') {
-        return res
-          .status(403)
-          .send({ error: true, message: 'forbidden message' });
-      }
-      next();
-    };
-
     // USERS:----------------------->>>>
-    app.get("/users", async (req, res) => {
+    app.get('/users', async (req, res) => {
       try {
         const result = await usersCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ error: 'Internal server error' });
       }
-
     });
 
-    app.get("/user/:email", async (req, res) => {
+    app.get('/user/:email', async (req, res) => {
       try {
         const { email } = req.params;
         const userData = await usersCollection.findOne({ email });
@@ -219,7 +213,6 @@ async function run() {
     });
 
     // Update history data by ID
-  
     app.post('/history',async(req,res)=>{
       const data = req.body
       const result = await historyCollection.insertOne(data)
@@ -239,8 +232,28 @@ async function run() {
       res.send(result)
     })
 
+//     app.put('/history/:id', async (req, res) => {
+//       try {
+//         const { id } = req.params;
+//         const updatedUserData = req.body;
+
+//         const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+//           new: true, // Return the updated document
+//         });
+
+//         if (!updatedUser) {
+//           return res.status(404).json({ message: 'User not found' });
+//         }
+
+//         res.json(updatedUser);
+//       } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Server error' });
+//       }
+//     });
+
     // Check admin
-    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -273,18 +286,45 @@ async function run() {
         const { user, movie } = req.body;
         console.log(user?.email);
 
+        if (!user || !user?.email) {
+          return res.status(400).json({ error: 'Invalid user data' });
+        }
+
+        const userExists = await usersCollection.findOne({
+          email: user?.email,
+        });
+
+        if (!userExists) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const alreadyInWishlist = userExists.wishlist.some(
+          (wishlist) => wishlist?._id === movie?._id
+        );
+
+        if (alreadyInWishlist) {
+          return res.status(403).json({ message: 'Already added to wishlist' });
+        }
+
+        await usersCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { wishlist: movie } }
+        );
+
+        res.status(200).json({ message: 'Movie added to wishlist!' });
+
         const wishlist = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
 
-        if (wishlist.modifiedCount === 1) {
-          res.status(200).json({ message: 'Movie added to wishlist' });
-        } else if (wishlist.matchedCount === 1) {
-          res.status(403).json({ message: 'Already added to wishlist' });
-        } else {
-          res.status(404).json({ error: 'User not found' });
-        }
+        // if (wishlist.modifiedCount === 1) {
+        //   res.status(200).json({ message: 'Movie added to wishlist' });
+        // } else if (wishlist.matchedCount === 1) {
+        //   res.status(403).json({ message: 'Already added to wishlist' });
+        // } else {
+        //   res.status(404).json({ error: 'User not found' });
+        // }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -295,9 +335,7 @@ async function run() {
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       const amount = price * 100;
-      // console.log(price, amount)
 
-      // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
@@ -311,29 +349,7 @@ async function run() {
       });
     });
 
-// Payment intent Method: 
-app.post("/create-payment-intent",  async (req, res) => {
-  const { price } = req.body;
-  const amount = price * 100;
-  // console.log(price, amount)
-
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-  });
-
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-
-    // payment related API
-    app.post( '/payments', async ( req, res ) => {
+    app.post('/payments', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
       res.send(result);
@@ -376,6 +392,29 @@ app.post("/create-payment-intent",  async (req, res) => {
         const fetchedQueries = await queryCollection.find().toArray();
         // console.log(fetchedQueries);
         res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Update query views by ID
+    app.post('/forumQueries/:id', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+        const updatedViews = req.body.views;
+
+        // Update the query views in your database
+        const updatedQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $set: { views: updatedViews } }
+        );
+
+        if (updatedQuery.modifiedCount === 1) {
+          res.json({ success: true });
+        } else {
+          res.json({ success: false });
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
