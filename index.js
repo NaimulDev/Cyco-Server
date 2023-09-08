@@ -6,6 +6,11 @@ const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
+
+// MIDDLEWARE:----------------------->>>>
+app.use(cors());
+app.use(express.json());
+
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -17,12 +22,8 @@ require('dotenv').config();
 
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
-// MIDDLEWARE:----------------------->>>>
-app.use(cors());
-app.use(express.json());
 
 // CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
-// const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
@@ -30,16 +31,16 @@ const verifyJWT = (req, res, next) => {
   if (!authorization) {
     return res
       .status(401)
-      .send({ error: true, message: 'unauthorized access' });
+      .send({ error: true, message: "unauthorized access" });
   }
   // bearer token
-  const token = authorization.split(' ')[1];
+  const token = authorization.split(" ")[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       return res
         .status(401)
-        .send({ error: true, message: 'unauthorized access' });
+        .send({ error: true, message: "unauthorized access" });
     }
     req.decoded = decoded;
     next();
@@ -120,7 +121,7 @@ async function run() {
     app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '24h',
+        expiresIn: "24h",
       });
       res.send({ token });
     });
@@ -135,6 +136,7 @@ async function run() {
       }
     });
 
+
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
@@ -142,15 +144,16 @@ async function run() {
         // res.send(result)
     
         if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Movie saved successfully' });
+          res.status(201).json({ message: "Movie saved successfully" });
         } else {
-          res.status(500).json({ error: 'Failed to save the movie' });
+          res.status(500).json({ error: "Failed to save the movie" });
         }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
+
 
     // SERIES:----------------------->>>>
     app.get('/series', verifyJWT, async (req, res) => {
@@ -158,9 +161,22 @@ async function run() {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
+
+    // Warning: use verifyJWT before using verifyAdmin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.decoded?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
 
     // USERS:----------------------->>>>
     app.get('/users', async (req, res) => {
@@ -179,12 +195,13 @@ async function run() {
         if (userData) {
           res.status(200).json(userData);
         } else {
-          res.status(404).json({ error: 'User not found' });
+          res.status(404).json({ error: "User not found" });
         }
       } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
+
 
     app.post('/register', async (req, res) => {
       try {
@@ -193,7 +210,7 @@ async function run() {
         // Check if the email is already registered
         const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
-          return res.status(409).json({ error: 'Email already registered' });
+          return res.status(409).json({ error: "Email already registered" });
         }
 
         // Create a new user document
@@ -206,9 +223,29 @@ async function run() {
           wishlist: [],
         });
 
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: "User registered successfully" });
       } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+    
+    app.put("history/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const updatedUserData = req.body;
+
+        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+          new: true, // Return the updated document
+        });
+
+        if (!updatedUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(updatedUser);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
       }
     });
 
@@ -232,26 +269,6 @@ async function run() {
       res.send(result)
     })
 
-//     app.put('/history/:id', async (req, res) => {
-//       try {
-//         const { id } = req.params;
-//         const updatedUserData = req.body;
-
-//         const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
-//           new: true, // Return the updated document
-//         });
-
-//         if (!updatedUser) {
-//           return res.status(404).json({ message: 'User not found' });
-//         }
-
-//         res.json(updatedUser);
-//       } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Server error' });
-//       }
-//     });
-
     // Check admin
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
@@ -262,17 +279,17 @@ async function run() {
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' };
+      const result = { admin: user?.role === "admin" };
       res.send(result);
     });
 
-    app.patch('/users/admin/:id', async (req, res) => {
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: 'admin',
+          role: "admin",
         },
       };
 
@@ -318,6 +335,7 @@ async function run() {
           { $addToSet: { wishlist: movie } }
         );
 
+
         // if (wishlist.modifiedCount === 1) {
         //   res.status(200).json({ message: 'Movie added to wishlist' });
         // } else if (wishlist.matchedCount === 1) {
@@ -327,7 +345,7 @@ async function run() {
         // }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
 
@@ -348,6 +366,7 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
+
 
     app.post('/payments', async (req, res) => {
       const payment = req.body;
@@ -431,8 +450,8 @@ async function run() {
 
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-  res.send('cyco-engine');
+app.get("/", (req, res) => {
+  res.send("cyco-engine");
 });
 
 server.listen(port, () => {
