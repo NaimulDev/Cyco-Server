@@ -12,12 +12,17 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+require('dotenv').config();
+
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
 
 // CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
-const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
+// const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
@@ -43,8 +48,6 @@ const verifyJWT = (req, res, next) => {
 
 // DATABASE:----------------------->>>>
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
-
-// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
@@ -112,6 +115,7 @@ async function run() {
     const seriesCollection = client.db('cyco').collection('series');
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
+    const historyCollection = client.db('cyco').collection('history');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -208,25 +212,45 @@ async function run() {
       }
     });
 
-    app.put('/history/:id', async (req, res) => {
-      try {
-        const { id } = req.params;
-        const updatedUserData = req.body;
+    // Update history data by ID
+    app.post('/history',async(req,res)=>{
+      const data = req.body
+      const result = await historyCollection.insertOne(data)
+      console.log(result);
+      res.send(result)
+    })
+    //get history in db
+    app.get('/getHistoryData',async(req,res)=>{
+      const result = await historyCollection.find().toArray()
+      res.send(result)
+    })
+     //delete a history data from db
+     app.delete('/history/:id',async(req,res)=>{
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await historyCollection.deleteOne(query)
+      res.send(result)
+    })
 
-        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
-          new: true, // Return the updated document
-        });
+//     app.put('/history/:id', async (req, res) => {
+//       try {
+//         const { id } = req.params;
+//         const updatedUserData = req.body;
 
-        if (!updatedUser) {
-          return res.status(404).json({ message: 'User not found' });
-        }
+//         const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
+//           new: true, // Return the updated document
+//         });
 
-        res.json(updatedUser);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-      }
-    });
+//         if (!updatedUser) {
+//           return res.status(404).json({ message: 'User not found' });
+//         }
+
+//         res.json(updatedUser);
+//       } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Server error' });
+//       }
+//     });
 
     // Check admin
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
