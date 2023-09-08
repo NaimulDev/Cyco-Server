@@ -83,6 +83,17 @@ io.on('connection', (socket) => {
   });
 });
 
+// Warning: use verifyJWT before using verifyAdmin
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email };
+  const user = await usersCollection.findOne(query);
+  if (user?.role !== 'admin') {
+    return res.status(403).send({ error: true, message: 'forbidden message' });
+  }
+  next();
+};
+
 async function run() {
   try {
     await client.connect();
@@ -134,19 +145,6 @@ async function run() {
         res.status(500).json({ error: 'Internal Server Error' });
       }
     });
-
-    // Warning: use verifyJWT before using verifyAdmin
-    const verifyAdmin = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== 'admin') {
-        return res
-          .status(403)
-          .send({ error: true, message: 'forbidden message' });
-      }
-      next();
-    };
 
     // USERS:----------------------->>>>
     app.get('/users', async (req, res) => {
@@ -252,18 +250,45 @@ async function run() {
         const { user, movie } = req.body;
         console.log(user?.email);
 
+        if (!user || !user?.email) {
+          return res.status(400).json({ error: 'Invalid user data' });
+        }
+
+        const userExists = await usersCollection.findOne({
+          email: user?.email,
+        });
+
+        if (!userExists) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        const alreadyInWishlist = userExists.wishlist.some(
+          (wishlist) => wishlist?._id === movie?._id
+        );
+
+        if (alreadyInWishlist) {
+          return res.status(403).json({ message: 'Already added to wishlist' });
+        }
+
+        await usersCollection.updateOne(
+          { email: user?.email },
+          { $addToSet: { wishlist: movie } }
+        );
+
+        res.status(200).json({ message: 'Movie added to wishlist!' });
+
         const wishlist = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
 
-        if (wishlist.modifiedCount === 1) {
-          res.status(200).json({ message: 'Movie added to wishlist' });
-        } else if (wishlist.matchedCount === 1) {
-          res.status(403).json({ message: 'Already added to wishlist' });
-        } else {
-          res.status(404).json({ error: 'User not found' });
-        }
+        // if (wishlist.modifiedCount === 1) {
+        //   res.status(200).json({ message: 'Movie added to wishlist' });
+        // } else if (wishlist.matchedCount === 1) {
+        //   res.status(403).json({ message: 'Already added to wishlist' });
+        // } else {
+        //   res.status(404).json({ error: 'User not found' });
+        // }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
