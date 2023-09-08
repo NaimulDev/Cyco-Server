@@ -114,6 +114,8 @@ async function run() {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
+        // res.send(result)
+    
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
@@ -331,6 +333,29 @@ async function run() {
         const fetchedQueries = await queryCollection.find().toArray();
         // console.log(fetchedQueries);
         res.status(200).json(fetchedQueries);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Update query views by ID
+    app.post('/forumQueries/:id', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+        const updatedViews = req.body.views;
+
+        // Update the query views in your database
+        const updatedQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $set: { views: updatedViews } }
+        );
+
+        if (updatedQuery.modifiedCount === 1) {
+          res.json({ success: true });
+        } else {
+          res.json({ success: false });
+        }
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
