@@ -12,7 +12,7 @@ require('dotenv').config();
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
-// Enable CORS for all routes
+
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
   res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with your client's origin
@@ -23,10 +23,6 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
   next();
 });
-
-
-
-
 
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
@@ -41,6 +37,7 @@ const verifyJWT = (req, res, next) => {
       .status(401)
       .send({ error: true, message: "unauthorized access" });
   }
+
   // bearer token
   const token = authorization.split(" ")[1];
 
@@ -56,9 +53,10 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:----------------------->>>>
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
