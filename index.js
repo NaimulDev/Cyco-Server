@@ -379,10 +379,11 @@ async function run() {
       sendMail(
         {
           subject: 'Payment Successful!',
-          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}`,
+          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transectionId}`,
         },
         payment?.email
       );
+      
       //send confirmation email to host email account
       sendMail(
         {
@@ -391,8 +392,20 @@ async function run() {
         },
         payment?.admin?.email
       );
+
       res.send(result);
     });
+     //get payment history in db
+    // Create an API endpoint to fetch data
+app.get('/getPaymentHistory', async (req, res) => {
+  try {
+    const data = await paymentsCollection.find().toArray(); // Replace with your query
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
 
     // FORUM QUERIES:----------------------->>>>
     app.post('/query', async (req, res) => {
