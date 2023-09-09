@@ -3,22 +3,30 @@ const cors = require('cors');
 const port = process.env.PORT || 8080;
 const app = express();
 const jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer")
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-
+// const http = require('http');
+// const { Server } = require('socket.io');
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
-
+// Enable CORS for all routes
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with your client's origin
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
+  next();
 });
 
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-require('dotenv').config();
+
+
+
 
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
@@ -48,9 +56,9 @@ const verifyJWT = (req, res, next) => {
 };
 
 // DATABASE:----------------------->>>>
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
-// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
@@ -70,8 +78,8 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    // origin: 'http://localhost:5173',
-    origin: 'https://cyco-inc.netlify.app',
+    origin: 'http://localhost:5173',
+    // origin: 'https://cyco-inc.netlify.app',
     methods: ['GET', 'POST'],
   },
 });
@@ -101,6 +109,31 @@ const verifyAdmin = async (req, res, next) => {
   }
   next();
 };
+
+    //send mail function 
+    const sendMail = (emailDate, emailAddress ) => {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: emailAddress,
+        subject: emailDate?.subject,
+        html:`<p>${emailDate?.message}</p>`
+      };
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+       console.log(error);
+        } else {
+          console.log('Email sent: ' + info.response);
+          // do something useful
+        }
+      });
+    }
 
 async function run() {
   try {
@@ -228,26 +261,7 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
-    
-    app.put("history/:id", async (req, res) => {
-      try {
-        const { id } = req.params;
-        const updatedUserData = req.body;
 
-        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
-          new: true, // Return the updated document
-        });
-
-        if (!updatedUser) {
-          return res.status(404).json({ message: "User not found" });
-        }
-
-        res.json(updatedUser);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
-      }
-    });
 
     // Update history data by ID
     app.post('/history',async(req,res)=>{
@@ -370,7 +384,24 @@ async function run() {
 
     app.post('/payments', async (req, res) => {
       const payment = req.body;
+      console.log(payment);
       const result = await paymentsCollection.insertOne(payment);
+       // Send confirmation email to guest
+       sendMail(
+        {
+          subject: 'Payment Successful!',
+          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}`,
+        },
+        payment?.email
+      )
+      //send confirmation email to host email account
+      sendMail(
+        {
+          subject: 'Your room got booked!',
+          message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
+        },
+        payment?.admin?.email
+      )
       res.send(result);
     });
 
