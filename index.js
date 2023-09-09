@@ -3,8 +3,11 @@ const cors = require('cors');
 const port = process.env.PORT || 8080;
 const app = express();
 const jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer")
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+// const http = require('http');
+// const { Server } = require('socket.io');
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
@@ -12,12 +15,19 @@ app.use(express.json());
 
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with your client's origin
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
+  next();
 });
 
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
+
+
 // CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
-const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 
 // JWT:----------------------->>>>
 const verifyJWT = (req, res, next) => {
@@ -25,17 +35,17 @@ const verifyJWT = (req, res, next) => {
   if (!authorization) {
     return res
       .status(401)
-      .send({ error: true, message: 'unauthorized access' });
+      .send({ error: true, message: "unauthorized access" });
   }
 
   // bearer token
-  const token = authorization.split(' ')[1];
+  const token = authorization.split(" ")[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
       return res
         .status(401)
-        .send({ error: true, message: 'unauthorized access' });
+        .send({ error: true, message: "unauthorized access" });
     }
     req.decoded = decoded;
     next();
@@ -46,6 +56,7 @@ const verifyJWT = (req, res, next) => {
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
@@ -65,8 +76,8 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    // origin: 'http://localhost:5173',
-    origin: 'https://cyco-inc.netlify.app',
+    origin: 'http://localhost:5173',
+    // origin: 'https://cyco-inc.netlify.app',
     methods: ['GET', 'POST'],
   },
 });
@@ -97,6 +108,31 @@ const verifyAdmin = async (req, res, next) => {
   next();
 };
 
+    //send mail function 
+    const sendMail = (emailDate, emailAddress ) => {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+      const mailOptions = {
+        from: process.env.EMAIL,
+        to: emailAddress,
+        subject: emailDate?.subject,
+        html:`<p>${emailDate?.message}</p>`
+      };
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+       console.log(error);
+        } else {
+          console.log('Email sent: ' + info.response);
+          // do something useful
+        }
+      });
+    }
+
 async function run() {
   try {
     client.connect((error) => {
@@ -111,11 +147,12 @@ async function run() {
     const seriesCollection = client.db('cyco').collection('series');
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
+    const historyCollection = client.db('cyco').collection('history');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '24h',
+        expiresIn: "24h",
       });
       res.send({ token });
     });
@@ -130,20 +167,24 @@ async function run() {
       }
     });
 
+
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
         const result = await moviesCollection.insertOne(movieData);
+        // res.send(result)
+    
         if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Movie saved successfully' });
+          res.status(201).json({ message: "Movie saved successfully" });
         } else {
-          res.status(500).json({ error: 'Failed to save the movie' });
+          res.status(500).json({ error: "Failed to save the movie" });
         }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
+
 
     // SERIES:----------------------->>>>
     app.get('/series', verifyJWT, async (req, res) => {
@@ -151,9 +192,22 @@ async function run() {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
       } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
+
+    // Warning: use verifyJWT before using verifyAdmin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.decoded?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
 
     // USERS:----------------------->>>>
     app.get('/users', async (req, res) => {
@@ -172,12 +226,13 @@ async function run() {
         if (userData) {
           res.status(200).json(userData);
         } else {
-          res.status(404).json({ error: 'User not found' });
+          res.status(404).json({ error: "User not found" });
         }
       } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
+
 
     app.post('/register', async (req, res) => {
       try {
@@ -186,7 +241,7 @@ async function run() {
         // Check if the email is already registered
         const existingUser = await usersCollection.findOne({ email });
         if (existingUser) {
-          return res.status(409).json({ error: 'Email already registered' });
+          return res.status(409).json({ error: "Email already registered" });
         }
 
         // Create a new user document
@@ -199,31 +254,32 @@ async function run() {
           wishlist: [],
         });
 
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: "User registered successfully" });
       } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
 
-    app.put('/history/:id', async (req, res) => {
-      try {
-        const { id } = req.params;
-        const updatedUserData = req.body;
 
-        const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, {
-          new: true, // Return the updated document
-        });
-
-        if (!updatedUser) {
-          return res.status(404).json({ message: 'User not found' });
-        }
-
-        res.json(updatedUser);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-      }
-    });
+    // Update history data by ID
+    app.post('/history',async(req,res)=>{
+      const data = req.body
+      const result = await historyCollection.insertOne(data)
+      console.log(result);
+      res.send(result)
+    })
+    //get history in db
+    app.get('/getHistoryData',async(req,res)=>{
+      const result = await historyCollection.find().toArray()
+      res.send(result)
+    })
+     //delete a history data from db
+     app.delete('/history/:id',async(req,res)=>{
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await historyCollection.deleteOne(query)
+      res.send(result)
+    })
 
     // Check admin
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
@@ -235,17 +291,17 @@ async function run() {
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' };
+      const result = { admin: user?.role === "admin" };
       res.send(result);
     });
 
-    app.patch('/users/admin/:id', async (req, res) => {
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: 'admin',
+          role: "admin",
         },
       };
 
@@ -291,6 +347,7 @@ async function run() {
           { $addToSet: { wishlist: movie } }
         );
 
+
         // if (wishlist.modifiedCount === 1) {
         //   res.status(200).json({ message: 'Movie added to wishlist' });
         // } else if (wishlist.matchedCount === 1) {
@@ -300,7 +357,7 @@ async function run() {
         // }
       } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
 
@@ -322,9 +379,27 @@ async function run() {
       });
     });
 
+
     app.post('/payments', async (req, res) => {
       const payment = req.body;
+      console.log(payment);
       const result = await paymentsCollection.insertOne(payment);
+       // Send confirmation email to guest
+       sendMail(
+        {
+          subject: 'Payment Successful!',
+          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}`,
+        },
+        payment?.email
+      )
+      //send confirmation email to host email account
+      sendMail(
+        {
+          subject: 'Your room got booked!',
+          message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
+        },
+        payment?.admin?.email
+      )
       res.send(result);
     });
 
@@ -404,8 +479,8 @@ async function run() {
 
 run().catch(console.dir);
 
-app.get('/', (req, res) => {
-  res.send('cyco-engine');
+app.get("/", (req, res) => {
+  res.send("cyco-engine");
 });
 
 server.listen(port, () => {
