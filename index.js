@@ -6,17 +6,26 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer")
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-
+// const http = require('http');
+// const { Server } = require('socket.io');
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
 app.use(express.json());
-
+// Enable CORS for all routes
 // Error handling middleware (for unhandled errors)
 app.use((err, req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with your client's origin
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
+  next();
 });
+
+
+
 
 
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
@@ -69,8 +78,8 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    // origin: 'http://localhost:5173',
-    origin: 'https://cyco-inc.netlify.app',
+    origin: 'http://localhost:5173',
+    // origin: 'https://cyco-inc.netlify.app',
     methods: ['GET', 'POST'],
   },
 });
@@ -375,6 +384,7 @@ async function run() {
 
     app.post('/payments', async (req, res) => {
       const payment = req.body;
+      console.log(payment);
       const result = await paymentsCollection.insertOne(payment);
        // Send confirmation email to guest
        sendMail(
@@ -390,7 +400,7 @@ async function run() {
           subject: 'Your room got booked!',
           message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
         },
-        payment?.host
+        payment?.admin?.email
       )
       res.send(result);
     });
