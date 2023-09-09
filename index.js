@@ -6,8 +6,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require("nodemailer")
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
-// const http = require('http');
-// const { Server } = require('socket.io');
+
 
 // MIDDLEWARE:----------------------->>>>
 app.use(cors());
@@ -388,20 +387,31 @@ async function run() {
        sendMail(
         {
           subject: 'Payment Successful!',
-          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}`,
+          message: `Payment Id: ${result?.insertedId}, TransactionId: ${payment.transectionId}`,
         },
         payment?.email
       )
-      //send confirmation email to host email account
-      sendMail(
-        {
-          subject: 'Your room got booked!',
-          message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
-        },
-        payment?.admin?.email
-      )
+      //send confirmation email to Admin email account
+      // sendMail(
+      //   {
+      //     subject: 'Your Payment Successful!!',
+      //     message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transectionId}. Check dashboard for more info`,
+      //   },
+      //   payment?.admin?.email
+      // )
       res.send(result);
     });
+     //get payment history in db
+    // Create an API endpoint to fetch data
+app.get('/getPaymentHistory', async (req, res) => {
+  try {
+    const data = await paymentsCollection.find().toArray(); // Replace with your query
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
 
     // FORUM QUERIES:----------------------->>>>
     app.post('/query', async (req, res) => {
