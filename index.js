@@ -14,7 +14,7 @@ app.use(express.json());
 
 // CUSTOM ERROR HANDLER MIDDLEWARE:----------------------->>>>
 app.use((err, req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with client's origin
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173'); // Update this with your client's origin
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -159,6 +159,7 @@ async function run() {
       try {
         const result = await moviesCollection.find().toArray();
         res.status(200).json(result);
+        // return result;
       } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
@@ -320,36 +321,63 @@ async function run() {
           return res.status(404).json({ error: 'User not found' });
         }
 
-        const alreadyInWishlist = userExists.wishlist.some(
+        const alreadyInWishlist = userExists?.wishlist?.some(
           (wishlist) => wishlist?._id === movie?._id
         );
 
         if (alreadyInWishlist) {
-          return res.status(403).json({ message: 'Already added to wishlist' });
+          return res
+            .status(200)
+            .json({ message: 'Already added to wishlist!' });
         }
 
-        await usersCollection.updateOne(
+        const updateResult = await usersCollection.updateOne(
           { email: user?.email },
           { $addToSet: { wishlist: movie } }
         );
 
-        res.status(200).json({ message: 'Movie added to wishlist!' });
-
-        const wishlist = await usersCollection.updateOne(
-          { email: user?.email },
-          { $addToSet: { wishlist: movie } }
-        );
-
-        // if (wishlist.modifiedCount === 1) {
-        //   res.status(200).json({ message: 'Movie added to wishlist' });
-        // } else if (wishlist.matchedCount === 1) {
-        //   res.status(403).json({ message: 'Already added to wishlist' });
-        // } else {
-        //   res.status(404).json({ error: 'User not found' });
-        // }
+        if (updateResult?.modifiedCount === 1) {
+          res.status(200).json({ message: 'Movie added to wishlist!' });
+        } else if (updateResult?.matchedCount === 1) {
+          res.status(403).json({ message: 'Already added to wishlist!' });
+        } else {
+          res.status(404).json({ error: 'User not found!' });
+        }
       } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.log(error);
+        res.status(500).json({ error: 'Internal server error!' });
+      }
+    });
+
+    app.delete('/wishlist/:email/:movieId', async (req, res) => {
+      try {
+        const { email, movieId } = req.params;
+        console.log(email, movieId);
+
+        const user = await usersCollection.findOne({ email: email });
+        if (!user) {
+          return res?.status(404).json({ error: 'User not found!' });
+        }
+
+        const movieIndex = user?.wishlist?.findIndex(
+          (movie) => movie?._id === movieId
+        );
+
+        if (movieIndex === -1) {
+          return res?.status(404).json({ error: 'Movie not found!' });
+        }
+
+        user?.wishlist?.splice(movieIndex, 1);
+
+        await usersCollection.updateOne(
+          { email: email },
+          { $set: { wishlist: user?.wishlist } }
+        );
+
+        res?.status(200).json({ message: 'Movie removed from wishlist!' });
+      } catch (error) {
+        console.log('Error removing movie from wishlist:', error);
+        res?.status(500).json({ error: 'Internal Server Error!' });
       }
     });
 
