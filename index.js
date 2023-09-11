@@ -168,9 +168,9 @@ async function run() {
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
+        console.log('Movie Data:', movieData);
         const result = await moviesCollection.insertOne(movieData);
-        // res.send(result)
-
+    
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
         } else {
