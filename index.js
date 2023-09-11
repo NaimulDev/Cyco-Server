@@ -415,7 +415,7 @@ async function run() {
       //send confirmation email to host email account
       sendMail(
         {
-          subject: 'Your room got booked!',
+          subject: 'CYCO SUBSCRIPTION ACTIVATED!',
           message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
         },
         payment?.admin?.email
@@ -423,6 +423,37 @@ async function run() {
 
       res.send(result);
     });
+
+    app.get('/monthly-revenue', async (req, res) => {
+      try {
+        const monthlyRevenue = await paymentsCollection.aggregate([
+          {
+            $match: {
+              date: { $type: 'date' }, // Filter out documents with invalid date values
+            },
+          },
+          {
+            $group: {
+              _id: {
+                year: { $year: '$date' },
+                month: { $month: '$date' },
+              },
+              totalRevenue: { $sum: '$amount' },
+            },
+          },
+        ]).toArray();
+    
+        res.json(monthlyRevenue);
+      } catch (error) {
+        console.error('Error fetching monthly revenue:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
+
+
+
+
 
     //get payment history in db
     // Create an API endpoint to fetch data
