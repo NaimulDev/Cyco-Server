@@ -110,9 +110,9 @@ const sendMail = (emailDate, emailAddress) => {
 };
 
 // DATABASE:----------------------->>>>
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
 
-// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
@@ -145,6 +145,7 @@ async function run() {
     const queryCollection = client.db("cyco").collection("forumQueries");
     const paymentsCollection = client.db("cyco").collection("payments");
     const historyCollection = client.db("cyco").collection("history");
+    const manageSubscriptionsCollection = client.db('cyco').collection('manageSubscriptions');
 
     // POST JWT:----------------------->>>>
     app.post("/jwt", (req, res) => {
@@ -303,6 +304,16 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+      // manageSubscriptions:----------------------->>>>
+      app.get('/getManageSubscriptions', async (req, res) => {
+        try {
+          const result = await manageSubscriptionsCollection.find().toArray();
+          res.status(200).json(result);
+        } catch (error) {
+          res.status(500).json({ error: 'Internal Server Error' });
+        }
+      });
 
     // Update history data by ID
     app.post("/history", async (req, res) => {
@@ -464,7 +475,7 @@ async function run() {
       //send confirmation email to host email account
       sendMail(
         {
-          subject: "Your room got booked!",
+          subject: 'CYCO SUBSCRIPTION ACTIVATED!',
           message: `Booking Id: ${result?.insertedId}, TransactionId: ${payment.transactionId}. Check dashboard for more info`,
         },
         payment?.admin?.email
@@ -472,6 +483,37 @@ async function run() {
 
       res.send(result);
     });
+
+    app.get('/monthly-revenue', async (req, res) => {
+      try {
+        const monthlyRevenue = await paymentsCollection.aggregate([
+          {
+            $match: {
+              date: { $type: 'date' }, // Filter out documents with invalid date values
+            },
+          },
+          {
+            $group: {
+              _id: {
+                year: { $year: '$date' },
+                month: { $month: '$date' },
+              },
+              totalRevenue: { $sum: '$amount' },
+            },
+          },
+        ]).toArray();
+    
+        res.json(monthlyRevenue);
+      } catch (error) {
+        console.error('Error fetching monthly revenue:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
+
+
+
+
 
     //get payment history in db
     // Create an API endpoint to fetch data
