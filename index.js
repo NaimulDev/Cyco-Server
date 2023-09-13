@@ -315,6 +315,20 @@ async function run() {
         }
       });
 
+      // PUT/PATCH: Update an item
+  // Update A room
+  app.put('/updateManageSubscriptions/:id', async (req, res) => {
+    const data = req.body
+
+    const filter = { _id: new ObjectId(req.params.id) }
+    const options = { upsert: true }
+    const updateDoc = {
+      $set: data,
+    }
+    const result = await manageSubscriptionsCollection.updateOne(filter, updateDoc, options)
+    res.send(result)
+  })
+
     // Update history data by ID
     app.post("/history", async (req, res) => {
       const data = req.body;
