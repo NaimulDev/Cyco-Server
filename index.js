@@ -18,7 +18,7 @@ app.use((err, req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  console.error(err.stack);
+  // console.error(err.stack);
   res.status(500).send('Something went wrong!');
   // next();
 });
@@ -70,11 +70,11 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+  // console.log(`User Connected: ${socket.id}`);
 
   // Handle disconnection
   socket.on('disconnect', () => {
-    console.log(`User Disconnected: ${socket.id}`);
+    // console.log(`User Disconnected: ${socket.id}`);
   });
 
   socket.on('send_notification', (data) => {
@@ -110,8 +110,7 @@ const sendMail = (emailDate, emailAddress) => {
 
 // DATABASE:----------------------->>>>
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
-
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
@@ -132,7 +131,7 @@ async function run() {
   try {
     client.connect((error) => {
       if (error) {
-        console.log(error);
+        // console.log(error);
         return;
       }
     });
@@ -144,7 +143,9 @@ async function run() {
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
     const historyCollection = client.db('cyco').collection('history');
-    const manageSubscriptionsCollection = client.db('cyco').collection('manageSubscriptions');
+    const manageSubscriptionsCollection = client
+      .db('cyco')
+      .collection('manageSubscriptions');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -256,28 +257,30 @@ async function run() {
       }
     });
 
-      // manageSubscriptions:----------------------->>>>
-      app.get('/getManageSubscriptions', async (req, res) => {
-        try {
-          const result = await manageSubscriptionsCollection.find().toArray();
-          res.status(200).json(result);
-        } catch (error) {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      });
+    // manageSubscriptions:----------------------->>>>
+    app.get('/getManageSubscriptions', async (req, res) => {
+      try {
+        const result = await manageSubscriptionsCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
 
     // Update history data by ID
     app.post('/history', async (req, res) => {
       const data = req.body;
       const result = await historyCollection.insertOne(data);
-      console.log(result);
+      // console.log(result);
       res.send(result);
     });
+
     //get history in db
     app.get('/getHistoryData', async (req, res) => {
       const result = await historyCollection.find().toArray();
       res.send(result);
     });
+
     //delete a history data from db
     app.delete('/history/:id', async (req, res) => {
       const id = req.params.id;
@@ -437,34 +440,31 @@ async function run() {
 
     app.get('/monthly-revenue', async (req, res) => {
       try {
-        const monthlyRevenue = await paymentsCollection.aggregate([
-          {
-            $match: {
-              date: { $type: 'date' }, // Filter out documents with invalid date values
-            },
-          },
-          {
-            $group: {
-              _id: {
-                year: { $year: '$date' },
-                month: { $month: '$date' },
+        const monthlyRevenue = await paymentsCollection
+          .aggregate([
+            {
+              $match: {
+                date: { $type: 'date' }, // Filter out documents with invalid date values
               },
-              totalRevenue: { $sum: '$amount' },
             },
-          },
-        ]).toArray();
-    
+            {
+              $group: {
+                _id: {
+                  year: { $year: '$date' },
+                  month: { $month: '$date' },
+                },
+                totalRevenue: { $sum: '$amount' },
+              },
+            },
+          ])
+          .toArray();
+
         res.json(monthlyRevenue);
       } catch (error) {
         console.error('Error fetching monthly revenue:', error);
         res.status(500).json({ error: 'Internal Server Error' });
       }
     });
-
-
-
-
-
 
     //get payment history in db
     // Create an API endpoint to fetch data
@@ -496,24 +496,9 @@ async function run() {
     });
 
     // FORUM:----------------------->>>>
-    app.post('/forumQueries', async (req, res) => {
-      try {
-        const newQuery = req.body;
-        // console.log(req.body);
-
-        const forumQueries = await queryCollection.insertOne(newQuery);
-        res.send(forumQueries);
-        // console.log(forumQueries);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
     app.get('/forumQueries', async (req, res) => {
       try {
         const fetchedQueries = await queryCollection.find().toArray();
-        // console.log(fetchedQueries);
         res.status(200).json(fetchedQueries);
       } catch (error) {
         console.error(error);
@@ -521,13 +506,46 @@ async function run() {
       }
     });
 
-    // Update query views by ID
-    app.post('/forumQueries/:id', async (req, res) => {
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        const result = await queryCollection.insertOne(newQuery);
+        res.status(201).json(result.ops[0]);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // QUERY COMMENT ENDPOINT:
+    app.post('/forumQueries/:id/comments', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+        const newComment = req.body.comment;
+        const userId = req.user?._id;
+
+        const updatedQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $push: { comments: newComment, userId } }
+        );
+
+        if (updatedQuery.modifiedCount === 1) {
+          res.json({ success: true });
+        } else {
+          res.json({ success: false });
+        }
+      } catch (error) {
+        console.error('Error adding comment:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // UPDATE QUERY VIEWS BY ID:
+    app.put('/forumQueries/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
         const updatedViews = req.body.views;
 
-        // Update the query views in your database
         const updatedQuery = await queryCollection.updateOne(
           { _id: new ObjectId(queryId) },
           { $set: { views: updatedViews } }
@@ -543,6 +561,74 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
+    // UPDATE QUERY VOTE COUNT:
+    const updateVoteCount = async (queryId, newVoteCount) => {
+      try {
+        const updateQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $set: { voteCount: newVoteCount } },
+          { returnOriginal: true }
+        );
+
+        if (!updateQuery.value) {
+          return { success: false, message: 'Query not found!' };
+        }
+        return { success: true, message: 'Vote count successfully!' };
+      } catch (error) {
+        console.log('Error updating vote count:', error);
+        return { success: false, message: 'Internal server error' };
+      }
+    };
+
+    app.put('/forumQueries/updateVoteCount/:queryId', async (req, res) => {
+      const { queryId } = req.params;
+      const { voteCount } = req.body;
+
+      console.log(queryId);
+
+      try {
+        const result = await updateVoteCount(queryId, voteCount);
+
+        if (result.success) {
+          return res.json(result);
+        }
+
+        return res.json({
+          success: true,
+          message: 'Vote count updated successfully!',
+        });
+      } catch (error) {
+        return res.status(404).json(result);
+      }
+    });
+
+    // app.put('/forumQueries/:id', async (req, res) => {
+    //   try {
+    //     const queryId = req.params.id;
+    //     const newComment = req.body;
+
+    //     const existingQuery = await queryCollection.findOne({
+    //       _id: new ObjectId(queryId),
+    //     });
+
+    //     if (!existingQuery) {
+    //       return res?.status(404).json({ error: 'Query not found!' });
+    //     }
+
+    //     existingQuery.comments.push(newComment);
+
+    //     await queryCollection.updateOne(
+    //       { _id: new ObjectId(queryId) },
+    //       { $set: { comments: existingQuery?.comments } }
+    //     );
+
+    //     res.json({ success: true });
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ error: 'Internal server error' });
+    //   }
+    // });
 
     // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
