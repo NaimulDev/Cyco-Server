@@ -270,23 +270,23 @@ async function run() {
     });
       // PUT/PATCH: Update an item
     // Update A room
-    app.put('/updateUserData/:email', async (req, res) => {
-      const email = req.params.email
-      const user = req.body
-      const query = {email:email }
-      const options = {upsert: true}
+     // PUT/PATCH: Update an item
+    // Update A room
+    app.put('/updateUserData/:id', async (req, res) => {
+      const data = req.body;
+
+      const filter = { _id: new ObjectId(req.params.id) };
+      const options = { upsert: true };
       const updateDoc = {
-        $set: user 
-      }
-    
+        $set: data,
+      };
       const result = await usersCollection.updateOne(
-        query,
+        filter,
         updateDoc,
         options
       );
       res.send(result);
     });
-
 
     // Route to save watch time
     app.post('/save-watch-time', async (req, res) => {
