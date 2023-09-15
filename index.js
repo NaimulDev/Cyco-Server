@@ -144,6 +144,9 @@ async function run() {
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
     const historyCollection = client.db('cyco').collection('history');
+    const feedbacksCollection = client.db('cyco').collection('feedbacks');
+    const reviewsCollection = client.db('cyco').collection('reviews');
+    const movieReviewsCollection = client.db('cyco').collection('movieReviews');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -484,6 +487,7 @@ async function run() {
       }
     });
 
+
     // FORUM:----------------------->>>>
     app.post('/forumQueries', async (req, res) => {
       try {
@@ -532,6 +536,95 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
+
+
+// Movie Reviews :----------------------->>>
+
+app.get('/movieReviews', async (req, res) => {
+  try {
+    const fetchedReviews = await queryCollection.find().toArray();
+    console.log(fetchedReviews);
+    res.status(200).join(fetchedReviews)
+  }catch (error) {
+    console.error(error);
+    res.status(500).json({error: 'Internal server error'});
+  }
+} );
+
+
+app.post('/reviews', async (req, res) => {
+  try {
+    const { user, review } = req.body;
+    // Update the user document in the users collection to add the review to their reviewSlot
+    const result = await usersCollection.updateOne(
+      { email: user?.email },
+      { $addToSet: { reviewSlot: review } }
+    );
+    if (result.modifiedCount === 1) {
+      // If a document was modified, it means the review was added successfully
+      res.status(201).json({ message: 'Review added successfully' });
+    } else {
+      // If no document was modified, it means the user with the specified email was not found
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.post('/movieReviews', async (req, res) => {
+  try{
+    const newMovieReview = req.body;
+    const movieReviews = await movieReviewsCollection.insertOne(newMovieReview);
+    res.send(movieReviews);
+
+  }catch (error) {
+    console.log(error)
+    res.status(500).join({error: 'Internal server error'});
+  }
+})
+
+
+
+
+
+
+
+// Creating a route to handle the GET request for feedbacks
+app.get('/feedbacks', async (req, res) => {
+  try {
+    // Query the collection to retrieve all feedbacks
+    const feedbacks = await feedbacksCollection.find({}).toArray();
+
+    // Return the feedbacks as a JSON response
+    res.status(200).json(feedbacks);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Creating a route to handle the POST request for feedbacks
+app.post('/feedbacks', async (req, res) => {
+  try {
+    const newFeedback = req.body; // Assuming your input field is named "feedback"
+
+
+    // Insert the feedback document into the collection
+    const result = await feedbacksCollection.insertOne(newFeedback);
+
+    res.status(201).json({ message: 'Feedback added successfully', insertedId: result.insertedId });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+    
 
     // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
