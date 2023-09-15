@@ -6,6 +6,7 @@ const nodemailer = require('nodemailer');
 const port = process.env.PORT || 8080;
 const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 require('dotenv').config();
 
 // MIDDLEWARE:----------------------->>>>
@@ -20,7 +21,7 @@ app.use((err, req, res, next) => {
 
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
-  // next();
+  next();
 });
 
 // JWT VERIFICATION CONFIG:----------------------->>>>
@@ -109,9 +110,8 @@ const sendMail = (emailDate, emailAddress) => {
 };
 
 // DATABASE:----------------------->>>>
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
-
-// const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:----------------------->>>>
 const client = new MongoClient(uri, {
@@ -132,7 +132,7 @@ async function run() {
   try {
     client.connect((error) => {
       if (error) {
-        console.log(error);
+        // console.log(error);
         return;
       }
     });
@@ -147,6 +147,9 @@ async function run() {
     const feedbacksCollection = client.db('cyco').collection('feedbacks');
     const reviewsCollection = client.db('cyco').collection('reviews');
     const movieReviewsCollection = client.db('cyco').collection('movieReviews');
+    const manageSubscriptionsCollection = client
+      .db('cyco')
+      .collection('manageSubscriptions');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -258,18 +261,96 @@ async function run() {
       }
     });
 
+    // Route to save watch time
+    app.post('/save-watch-time', async (req, res) => {
+      try {
+        const { userId, movieId, duration } = req.body;
+
+        const watchTimeData = {
+          userId,
+          movieId,
+          startTime: new Date(),
+          endTime: new Date(new Date().getTime() + duration * 1000),
+        };
+
+        // Save the watch time data to your MongoDB collection
+        const result = await usersCollection.insertOne(watchTimeData);
+
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Watch time saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save watch time' });
+        }
+      } catch (error) {
+        console.error('Error saving watch time:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Route to get watch time analytics for a user
+    app.get('/user-watch-time/:userId', async (req, res) => {
+      try {
+        const userId = req.params.userId;
+
+        // Calculate total watch time for the user
+        const watchTimeRecords = await usersCollection
+          .find({ userId })
+          .toArray();
+
+        const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
+          const durationInSeconds = (record.endTime - record.startTime) / 1000;
+          return acc + durationInSeconds;
+        }, 0);
+
+        res.status(200).json({ totalWatchTime });
+      } catch (error) {
+        console.error('Error fetching watch time analytics:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // manageSubscriptions:----------------------->>>>
+    app.get('/getManageSubscriptions', async (req, res) => {
+      try {
+        const result = await manageSubscriptionsCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
+    // PUT/PATCH: Update an item
+    // Update A room
+    app.put('/updateManageSubscriptions/:id', async (req, res) => {
+      const data = req.body;
+
+      const filter = { _id: new ObjectId(req.params.id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: data,
+      };
+      const result = await manageSubscriptionsCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
     // Update history data by ID
     app.post('/history', async (req, res) => {
       const data = req.body;
       const result = await historyCollection.insertOne(data);
-      console.log(result);
+      // console.log(result);
       res.send(result);
     });
+
     //get history in db
     app.get('/getHistoryData', async (req, res) => {
       const result = await historyCollection.find().toArray();
       res.send(result);
     });
+
     //delete a history data from db
     app.delete('/history/:id', async (req, res) => {
       const id = req.params.id;
@@ -429,34 +510,31 @@ async function run() {
 
     app.get('/monthly-revenue', async (req, res) => {
       try {
-        const monthlyRevenue = await paymentsCollection.aggregate([
-          {
-            $match: {
-              date: { $type: 'date' }, // Filter out documents with invalid date values
-            },
-          },
-          {
-            $group: {
-              _id: {
-                year: { $year: '$date' },
-                month: { $month: '$date' },
+        const monthlyRevenue = await paymentsCollection
+          .aggregate([
+            {
+              $match: {
+                date: { $type: 'date' }, // Filter out documents with invalid date values
               },
-              totalRevenue: { $sum: '$amount' },
             },
-          },
-        ]).toArray();
-    
+            {
+              $group: {
+                _id: {
+                  year: { $year: '$date' },
+                  month: { $month: '$date' },
+                },
+                totalRevenue: { $sum: '$amount' },
+              },
+            },
+          ])
+          .toArray();
+
         res.json(monthlyRevenue);
       } catch (error) {
         console.error('Error fetching monthly revenue:', error);
         res.status(500).json({ error: 'Internal Server Error' });
       }
     });
-
-
-
-
-
 
     //get payment history in db
     // Create an API endpoint to fetch data
@@ -506,7 +584,6 @@ async function run() {
     app.get('/forumQueries', async (req, res) => {
       try {
         const fetchedQueries = await queryCollection.find().toArray();
-        // console.log(fetchedQueries);
         res.status(200).json(fetchedQueries);
       } catch (error) {
         console.error(error);
@@ -514,13 +591,46 @@ async function run() {
       }
     });
 
-    // Update query views by ID
-    app.post('/forumQueries/:id', async (req, res) => {
+    app.post('/forumQueries', async (req, res) => {
+      try {
+        const newQuery = req.body;
+        const result = await queryCollection.insertOne(newQuery);
+        res.status(201).json(result.ops[0]);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // QUERY COMMENT ENDPOINT:
+    app.post('/forumQueries/:id/comments', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+        const newComment = req.body.comment;
+        const userId = req.user?._id;
+
+        const updatedQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $push: { comments: newComment, userId } }
+        );
+
+        if (updatedQuery.modifiedCount === 1) {
+          res.json({ success: true });
+        } else {
+          res.json({ success: false });
+        }
+      } catch (error) {
+        console.error('Error adding comment:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // UPDATE QUERY VIEWS BY ID:
+    app.put('/forumQueries/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
         const updatedViews = req.body.views;
 
-        // Update the query views in your database
         const updatedQuery = await queryCollection.updateOne(
           { _id: new ObjectId(queryId) },
           { $set: { views: updatedViews } }
@@ -537,10 +647,7 @@ async function run() {
       }
     });
 
-
-
 // Movie Reviews :----------------------->>>
-
 app.get('/movieReviews', async (req, res) => {
   try {
     const fetchedReviews = await movieReviewsCollection.find().toArray();
@@ -587,12 +694,6 @@ app.post('/movieReviews', async (req, res) => {
   }
 })
 
-
-
-
-
-
-
 // Creating a route to handle the GET request for feedbacks
 app.get('/feedbacks', async (req, res) => {
   try {
@@ -622,9 +723,74 @@ app.post('/feedbacks', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-
     
+    // UPDATE QUERY VOTE COUNT:
+    const updateVoteCount = async (queryId, newVoteCount) => {
+      try {
+        const updateQuery = await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $set: { voteCount: newVoteCount } },
+          { returnOriginal: true }
+        );
+
+        if (!updateQuery.value) {
+          return { success: false, message: 'Query not found!' };
+        }
+        return { success: true, message: 'Vote count successfully!' };
+      } catch (error) {
+        console.log('Error updating vote count:', error);
+        return { success: false, message: 'Internal server error' };
+      }
+    };
+
+    app.put('/forumQueries/updateVoteCount/:queryId', async (req, res) => {
+      const { queryId } = req.params;
+      const { voteCount } = req.body;
+
+      console.log(queryId);
+
+      try {
+        const result = await updateVoteCount(queryId, voteCount);
+
+        if (result.success) {
+          return res.json(result);
+        }
+
+        return res.json({
+          success: true,
+          message: 'Vote count updated successfully!',
+        });
+      } catch (error) {
+        return res.status(404).json(result);
+      }
+    });
+
+    // app.put('/forumQueries/:id', async (req, res) => {
+    //   try {
+    //     const queryId = req.params.id;
+    //     const newComment = req.body;
+
+    //     const existingQuery = await queryCollection.findOne({
+    //       _id: new ObjectId(queryId),
+    //     });
+
+    //     if (!existingQuery) {
+    //       return res?.status(404).json({ error: 'Query not found!' });
+    //     }
+
+    //     existingQuery.comments.push(newComment);
+
+    //     await queryCollection.updateOne(
+    //       { _id: new ObjectId(queryId) },
+    //       { $set: { comments: existingQuery?.comments } }
+    //     );
+
+    //     res.json({ success: true });
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ error: 'Internal server error' });
+    //   }
+    // });
 
     // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
