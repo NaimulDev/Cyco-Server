@@ -543,14 +543,14 @@ async function run() {
 
 app.get('/movieReviews', async (req, res) => {
   try {
-    const fetchedReviews = await queryCollection.find().toArray();
+    const fetchedReviews = await movieReviewsCollection.find().toArray();
     console.log(fetchedReviews);
-    res.status(200).join(fetchedReviews)
-  }catch (error) {
+    res.status(200).json(fetchedReviews);
+  } catch (error) {
     console.error(error);
-    res.status(500).json({error: 'Internal server error'});
+    res.status(500).json({ error: 'Internal server error' });
   }
-} );
+});
 
 
 app.post('/reviews', async (req, res) => {
