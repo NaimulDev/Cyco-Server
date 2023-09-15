@@ -260,6 +260,33 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+    app.get('/getUser', async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+      // PUT/PATCH: Update an item
+    // Update A room
+    app.put('/updateUserData/:email', async (req, res) => {
+      const email = req.params.email
+      const user = req.body
+      const query = {email:email }
+      const options = {upsert: true}
+      const updateDoc = {
+        $set: user 
+      }
+    
+      const result = await usersCollection.updateOne(
+        query,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
+
 
     // Route to save watch time
     app.post('/save-watch-time', async (req, res) => {
