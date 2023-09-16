@@ -638,7 +638,7 @@ async function run() {
 
         const updatedQuery = await queryCollection.updateOne(
           { _id: new ObjectId(queryId) },
-          { $push: { comments: newComment, userId } }
+          { $addToSet: { comments: newComment, userId } }
         );
 
         if (updatedQuery.modifiedCount === 1) {
@@ -648,6 +648,28 @@ async function run() {
         }
       } catch (error) {
         console.error('Error adding comment:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/forumQueries/:id/comments', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+
+        const query = await queryCollection.findOne({
+          _id: new ObjectId(queryId),
+        });
+
+        if (!query) {
+          res.status(404).json({ error: 'Query not found' });
+          return;
+        }
+
+        const comments = query?.comments;
+        console.log(comments);
+        res.json({ success: true, comments });
+      } catch (error) {
+        console.log('Error fetching comments:', error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
@@ -770,25 +792,100 @@ app.post('/feedbacks', async (req, res) => {
       }
     };
 
-    app.put('/forumQueries/updateVoteCount/:queryId', async (req, res) => {
-      const { queryId } = req.params;
+    app.put('/forumQueries/:queryId', async (req, res) => {
+      // const queryId = req.params.id;
+      const queryId = req.params.queryId;
       const { voteCount } = req.body;
+      const voteType = req.body;
+      const userId = req.decoded;
 
-      console.log(queryId);
+      console.log('vote handler:', queryId, voteType, userId);
 
       try {
-        const result = await updateVoteCount(queryId, voteCount);
+        const query = await queryCollection.findOne({
+          _id: new ObjectId(queryId),
+        });
 
-        if (result.success) {
-          return res.json(result);
+        if (!query) {
+          return res.status(404).json({ error: 'Query not found!' });
         }
 
-        return res.json({
-          success: true,
-          message: 'Vote count updated successfully!',
-        });
+        if (voteType === 'upvote') {
+          if (query?.upvote.includes(userId)) {
+            return res.status(400).json({ error: 'Already upvoted!' });
+          }
+
+          if (query?.downvotes.includes(userId)) {
+            const downvoteIndex = query.downvotes.indexOf(userId);
+            query.downvotes.splice(downvoteIndex, 1);
+          }
+
+          query.upvotes.push(userId);
+        } else if (voteType === 'downvote') {
+          if (query.downvotes.includes(userId)) {
+            return res
+              .status(400)
+              .json({ error: 'User already downvoted this query!' });
+          }
+
+          if (query.upvotes.includes(userId)) {
+            const upvoteIndex = query.upvotes.indexOf(userId);
+            query.upvotes.splice(upvoteIndex, 1);
+          }
+
+          query.downvotes.push(userId);
+        } else {
+          return res.status(400).json({ error: 'Invalid vote type!' });
+        }
+
+        await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          {
+            $set: {
+              upvotes: query?.upvotes,
+              downvotes: query?.downvotes,
+            },
+          }
+        );
+
+        res.json({ success: true });
       } catch (error) {
-        return res.status(404).json(result);
+        console.error('Error updating vote count:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // app.delete('/forumQueries/votes/:id', async (req, res) => {
+    //   const queryId = req.params.id;
+
+    //   try {
+    //     const query = await queryCollection.findOne(queryId);
+
+    //     if (!query) {
+    //       res.status(404).json({ error: 'Query not found' });
+    //       return;
+    //     }
+
+    //     await queryCollection.deleteOne({ _id: queryId });
+    //     res.json({ message: 'Query deleted successfully' });
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).json({ error: 'Internal Server Error' });
+    //   }
+    // });
+
+    app.delete('/forumQueries/:id', async (req, res) => {
+      try {
+        const objectId = req.params.id;
+        const deletedObject = await queryCollection.deleteOne(objectId);
+
+        if (!deletedObject) {
+          return res.status(404).json({ message: 'Object not found' });
+        }
+        res.json({ message: 'Object deleted successfully', deletedObject });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
       }
     });
 
