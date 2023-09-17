@@ -144,6 +144,7 @@ async function run() {
     const queryCollection = client.db('cyco').collection('forumQueries');
     const paymentsCollection = client.db('cyco').collection('payments');
     const historyCollection = client.db('cyco').collection('history');
+    const reviewsCollection = client.db('cyco').collection('reviews');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -500,6 +501,26 @@ async function run() {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
+    });
+
+
+    // User Reviews.......>>>>
+    app.get('/reviews', async (req, res) => {
+      try {
+        const result = await reviewsCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    // Add Reviews.......>>>>
+    app.post('/reviews', async (req, res) => {
+      const data = req.body;
+      const result = await reviewsCollection.insertOne(data);
+      console.log(result);
+      res.send(result);
     });
 
     // CHECK SERVER CONNECTION:----------------------->>>>
