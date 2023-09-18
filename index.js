@@ -130,7 +130,7 @@ const client = new MongoClient(uri, {
 // ----------------------------->>>>
 async function run() {
   try {
-    client.connect((error) => {
+    await client.connect((error) => {
       if (error) {
         // console.log(error);
         return;
