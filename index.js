@@ -139,6 +139,8 @@ async function run() {
 
     // DATABASE COLLECTION:----------------------->>>>
     const moviesCollection = client.db("cyco").collection("movies");
+    const liveTVCollection = client.db("cyco").collection("liveTVChannel");
+
     const usersCollection = client.db("cyco").collection("users");
     const seriesCollection = client.db("cyco").collection("series");
     const queryCollection = client.db("cyco").collection("forumQueries");
@@ -181,6 +183,36 @@ async function run() {
           res.status(201).json({ message: "Movie saved successfully" });
         } else {
           res.status(500).json({ error: "Failed to save the movie" });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    // Live tv route:----------------------->>>>
+    app.get("/liveTV", async (req, res) => {
+      try {
+        const result = await liveTVCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    app.post("/liveTV", async (req, res) => {
+      try {
+        const movieData = req.body;
+        const result = await liveTVCollection.insertOne(movieData);
+        // res.send(result)
+
+        if (result.insertedCount === 1) {
+          res
+            .status(201)
+            .json({ message: "Live Tv Channel saved successfully" });
+        } else {
+          res.status(500).json({ error: "Failed to save the Live TV Channel" });
         }
       } catch (error) {
         console.error(error);
@@ -268,6 +300,19 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+    // PUT/PATCH: Update an item
+    // Update A room
+    app.put("/updateUserData/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: user,
+      };
+
+      const result = await usersCollection.updateOne(query, updateDoc, options);
+      res.send(result);
     // edit user
     app.put("/updateUserData/:id", async (req, res) => {
       const data = req.body;
@@ -758,12 +803,16 @@ async function run() {
         // Insert the feedback document into the collection
         const result = await feedbacksCollection.insertOne(newFeedback);
 
-        res
-          .status(201)
-          .json({
-            message: "Feedback added successfully",
-            insertedId: result.insertedId,
-          });
+        res.status(201).json({
+          message: "Feedback added successfully",
+          insertedId: result.insertedId,
+        });
+//         res
+//           .status(201)
+//           .json({
+//             message: "Feedback added successfully",
+//             insertedId: result.insertedId,
+//           });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
