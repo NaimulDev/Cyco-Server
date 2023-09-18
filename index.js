@@ -324,6 +324,19 @@ async function run() {
 
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    // edit user
+    app.put("/updateUserData/:id", async (req, res) => {
+      const data = req.body;
+      const filter = { _id: new ObjectId(req.params.id) };
+      const updateDoc = {
+        $set: data,
+      };
+      try {
+        const result = await usersCollection.updateMany(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send(error);
+      }
     });
 
     // Route to save watch time
@@ -388,7 +401,7 @@ async function run() {
     // Update A room
     app.put("/updateManageSubscriptions/:id", async (req, res) => {
       const data = req.body;
-
+      console.log(data);
       const filter = { _id: new ObjectId(req.params.id) };
       const options = { upsert: true };
       const updateDoc = {
@@ -805,6 +818,12 @@ async function run() {
           message: "Feedback added successfully",
           insertedId: result.insertedId,
         });
+//         res
+//           .status(201)
+//           .json({
+//             message: "Feedback added successfully",
+//             insertedId: result.insertedId,
+//           });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
