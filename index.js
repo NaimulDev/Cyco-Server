@@ -130,7 +130,7 @@ const client = new MongoClient(uri, {
 // ----------------------------->>>>
 async function run() {
   try {
-    client.connect((error) => {
+    await client.connect((error) => {
       if (error) {
         // console.log(error);
         return;
@@ -324,6 +324,7 @@ async function run() {
 
       const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
+    });
     // edit user
     app.put("/updateUserData/:id", async (req, res) => {
       const data = req.body;
@@ -818,12 +819,12 @@ async function run() {
           message: "Feedback added successfully",
           insertedId: result.insertedId,
         });
-//         res
-//           .status(201)
-//           .json({
-//             message: "Feedback added successfully",
-//             insertedId: result.insertedId,
-//           });
+        //         res
+        //           .status(201)
+        //           .json({
+        //             message: "Feedback added successfully",
+        //             insertedId: result.insertedId,
+        //           });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
