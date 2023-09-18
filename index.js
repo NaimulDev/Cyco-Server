@@ -138,17 +138,16 @@ async function run() {
     });
 
     // DATABASE COLLECTION:----------------------->>>>
-    const moviesCollection = client.db('cyco').collection('movies');
-    const liveTVCollection = client.db('cyco').collection('liveTVChannel');
-
-    const usersCollection = client.db('cyco').collection('users');
-    const seriesCollection = client.db('cyco').collection('series');
-    const queryCollection = client.db('cyco').collection('forumQueries');
-    const paymentsCollection = client.db('cyco').collection('payments');
-    const historyCollection = client.db('cyco').collection('history');
-    const feedbacksCollection = client.db('cyco').collection('feedbacks');
-    const reviewsCollection = client.db('cyco').collection('reviews');
-    const movieReviewsCollection = client.db('cyco').collection('movieReviews');
+    const moviesCollection = client.db("cyco").collection("movies");
+    const liveTVCollection = client.db("cyco").collection("liveTV");
+    const usersCollection = client.db("cyco").collection("users");
+    const seriesCollection = client.db("cyco").collection("series");
+    const queryCollection = client.db("cyco").collection("forumQueries");
+    const paymentsCollection = client.db("cyco").collection("payments");
+    const historyCollection = client.db("cyco").collection("history");
+    const feedbacksCollection = client.db("cyco").collection("feedbacks");
+    const reviewsCollection = client.db("cyco").collection("reviews");
+    const movieReviewsCollection = client.db("cyco").collection("movieReviews");
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
@@ -217,6 +216,18 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.delete("/tvChannel/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await liveTVCollection.deleteOne(query);
+      console.log("delete id", result);
+      if (result.deletedCount > 0) {
+        res.json({ success: true, message: "Item deleted successfully" });
+      } else {
+        res.status(404).json({ success: false, message: "Item not found" });
       }
     });
 
