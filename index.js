@@ -219,15 +219,67 @@ async function run() {
       }
     });
 
-    app.delete("/tvChannel/:id", async (req, res) => {
+    // app.delete("/liveTV/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   console.log(id);
+    //   const query = { _id: new ObjectId(id) };
+    //   const result = await liveTVCollection.deleteOne(query);
+    //   console.log("delete id", result);
+    //   if (result.deletedCount > 0) {
+    //     res.json({ success: true, message: "Item deleted successfully" });
+    //   } else {
+    //     res.status(404).json({ success: false, message: "Item not found" });
+    //   }
+    // });
+
+    // Define a route for retrieving channel information by ID
+    app.get("/liveTV/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await liveTVCollection.deleteOne(query);
-      console.log("delete id", result);
-      if (result.deletedCount > 0) {
-        res.json({ success: true, message: "Item deleted successfully" });
-      } else {
-        res.status(404).json({ success: false, message: "Item not found" });
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const channel = await liveTVCollection.findOne(query);
+
+        if (channel) {
+          // Channel found, send it as a response
+          res.json({ success: true, data: channel });
+        } else {
+          // No matching channel found
+          res
+            .status(404)
+            .json({ success: false, message: "Channel not found" });
+        }
+      } catch (error) {
+        // Handle any errors that occurred during the retrieval process
+        console.error("Error:", error);
+        res.status(500).json({
+          success: false,
+          message: "An error occurred while retrieving the channel",
+        });
+      }
+    });
+
+    app.delete("/liveTV/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const result = await liveTVCollection.deleteOne(query);
+
+        if (result.deletedCount > 0) {
+          // Successfully deleted the channel
+          res.json({ success: true, message: "Item deleted successfully" });
+        } else {
+          // No matching channel found
+          res.status(404).json({ success: false, message: "Item not found" });
+        }
+      } catch (error) {
+        // Handle any errors that occurred during the deletion process
+        console.error("Error:", error);
+        res.status(500).json({
+          success: false,
+          message: "An error occurred while deleting the item",
+        });
       }
     });
 
