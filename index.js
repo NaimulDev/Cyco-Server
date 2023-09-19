@@ -148,6 +148,7 @@ async function run() {
     const feedbacksCollection = client.db("cyco").collection("feedbacks");
     const reviewsCollection = client.db("cyco").collection("reviews");
     const movieReviewsCollection = client.db("cyco").collection("movieReviews");
+    const eventsCollection = client.db('cyco').collection("events");
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
@@ -160,6 +161,37 @@ async function run() {
       });
       res.send({ token });
     });
+
+    // Events Post 
+    app.post('/newEvent', async (req,res) =>{
+      try {
+        const event = req.body;
+        const result = await eventsCollection.insertOne(event);
+        // res.send(result)
+
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Movie saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save the movie' });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
+
+    // Events Get 
+    app.get('/events', async (req,res) =>{
+      try {
+        const result = await eventsCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
 
     // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
