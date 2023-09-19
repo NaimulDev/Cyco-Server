@@ -152,6 +152,66 @@ async function run() {
       res.send({ token });
     });
 
+    // VERIFY ADMIN: (USE verifyJWT BEFORE USING verifyAdmin)--->>>>
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res.status(403).send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+    // USERS Management:----------------------->>>>
+
+    // insert user 
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      console.log(user)
+      const query = { email: user.email }
+      const existingUser = await usersCollection.findOne(query);
+
+      if (existingUser) {
+        res.status(201).json({ message: 'user already exists' })
+      }
+
+      const result = await usersCollection.insertOne(user);
+      res.status(200).json(result);
+    });
+
+    // get all users 
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray()
+      res.status(200).json(result);
+    })
+
+    // Check admin
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    });
+
+    // set admin role 
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin'
+        }
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result)
+    })
+
     // Events Post 
     app.post('/newEvent', async (req, res) => {
       try {
@@ -192,8 +252,8 @@ async function run() {
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
+        console.log('Movie Data:', movieData);
         const result = await moviesCollection.insertOne(movieData);
-        // res.send(result)
 
         if (result.insertedCount === 1) {
           res.status(201).json({ message: 'Movie saved successfully' });
@@ -258,6 +318,23 @@ async function run() {
       }
     });
 
+//  app.get("/user/:email", async (req, res) => {
+//       try {
+//         const { email } = req.params;
+//         const userData = await usersCollection.findOne({ email });
+//         if (userData) {
+//           res.status(200).json(userData);
+//         } else {
+//           res.status(404).json({ error: "User not found" });
+//         }
+//       } catch (error) {
+//         res.status(500).json({ error: "Internal server error" });
+//       }
+//     });
+
+    // app.post("/register", async (req, res) => {
+    //   try {
+    //     const { username, email, password, role, photoUrl } = req.body;
     // VERIFY ADMIN: (USE verifyJWT BEFORE USING verifyAdmin)--->>>>
     const verifyAdmin = async (req, res, next) => {
       const email = req?.decoded?.email;
@@ -336,76 +413,97 @@ async function run() {
       const query = { email: email };
       const options = { upsert: true };
 
-      const updateDoc = {
-        $set: user,
-      };
+    //     // Check if the email is already registered
+    //     const existingUser = await usersCollection.findOne({ email });
+    //     if (existingUser) {
+    //       return res.status(409).json({ error: "Email already registered" });
+    //     }
 
-      const result = await usersCollection.updateOne(query, updateDoc, options);
-      res.send(result);
-    });
+    //     // Create a new user document
+    //     await usersCollection.insertOne({
+    //       username,
+    //       role,
+    //       email,
+    //       password,
+    //       photoUrl,
+    //       wishlist: [],
+    //     });
 
+    //     res.status(201).json({ message: "User registered successfully" });
+    //   } catch (error) {
+    //     res.status(500).json({ error: "Internal server error" });
+    //   }
+    // });
+    // app.get("/getUser", async (req, res) => {
+    //   try {
+    //     const result = await usersCollection.find().toArray();
+    //     res.status(200).json(result);
+    //   } catch (error) {
+    //     res.status(500).json({ error: "Internal Server Error" });
+    //   }
+    // });
     // edit user
-    app.put('/updateUserData/:id', async (req, res) => {
-      const data = req.body;
-      const filter = { _id: new ObjectId(req.params.id) };
-      const updateDoc = {
-        $set: data,
-      };
-      try {
-        const result = await usersCollection.updateMany(filter, updateDoc);
-        res.send(result);
-      } catch (error) {
-        res.status(500).send(error);
-      }
-    });
+    // app.put("/updateUserData/:id", async (req, res) => {
+    //   const data = req.body;
+    //   const filter = { _id: new ObjectId(req.params.id) };
+    //   const updateDoc = {
+    //     $set: data,
+    //   };
+    //   try {
+    //     const result = await usersCollection.updateMany(filter, updateDoc);
+    //     res.send(result);
+    //   } catch (error) {
+    //     res.status(500).send(error);
+    //   }
+    // });
 
     // Route to save watch time
-    app.post('/save-watch-time', async (req, res) => {
-      try {
-        const { userId, movieId, duration } = req.body;
+    // app.post("/save-watch-time", async (req, res) => {
+    //   try {
+    //     const { userId, movieId, duration } = req.body;
 
-        const watchTimeData = {
-          userId,
-          movieId,
-          startTime: new Date(),
-          endTime: new Date(new Date().getTime() + duration * 1000),
-        };
+    //     const watchTimeData = {
+    //       userId,
+    //       movieId,
+    //       startTime: new Date(),
+    //       endTime: new Date(new Date().getTime() + duration * 1000),
+    //     };
 
-        // Save the watch time data to your MongoDB collection
-        const result = await usersCollection.insertOne(watchTimeData);
+    //     // Save the watch time data to your MongoDB collection
+    //     const result = await usersCollection.insertOne(watchTimeData);
 
-        if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Watch time saved successfully' });
-        } else {
-          res.status(500).json({ error: 'Failed to save watch time' });
-        }
-      } catch (error) {
-        console.error('Error saving watch time:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+    //     if (result.insertedCount === 1) {
+    //       res.status(201).json({ message: "Watch time saved successfully" });
+    //     } else {
+    //       res.status(500).json({ error: "Failed to save watch time" });
+    //     }
+    //   } catch (error) {
+    //     console.error("Error saving watch time:", error);
+    //     res.status(500).json({ error: "Internal server error" });
+    //   }
+    // });
 
     // Route to get watch time analytics for a user
-    app.get('/user-watch-time/:userId', async (req, res) => {
-      try {
-        const userId = req.params.userId;
+    // app.get("/user-watch-time/:userId", async (req, res) => {
+    //   try {
+    //     const userId = req.params.userId;
 
-        // Calculate total watch time for the user
-        const watchTimeRecords = await usersCollection
-          .find({ userId })
-          .toArray();
+    //     // Calculate total watch time for the user
+    //     const watchTimeRecords = await usersCollection
+    //       .find({ userId })
+    //       .toArray();
 
-        const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
-          const durationInSeconds = (record.endTime - record.startTime) / 1000;
-          return acc + durationInSeconds;
-        }, 0);
+    //     const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
+    //       const durationInSeconds = (record.endTime - record.startTime) / 1000;
+    //       return acc + durationInSeconds;
+    //     }, 0);
 
-        res.status(200).json({ totalWatchTime });
-      } catch (error) {
-        console.error('Error fetching watch time analytics:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+    //     res.status(200).json({ totalWatchTime });
+    //   } catch (error) {
+    //     console.error("Error fetching watch time analytics:", error);
+    //     res.status(500).json({ error: "Internal server error" });
+    //   }
+    // });
 
     // manageSubscriptions:----------------------->>>>
     app.get('/getManageSubscriptions', async (req, res) => {
@@ -457,47 +555,43 @@ async function run() {
       res.send(result);
     });
 
+
     // Check admin
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
 
-      if (req.decoded.email !== email) {
-        res.send({ admin: false });
-      }
 
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' };
-      res.send(result);
-    });
+    // app.patch("/users/admin/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   // console.log(id);
+    //   const filter = { _id: new ObjectId(id) };
+    //   const updateDoc = {
+    //     $set: {
+    //       role: "admin",
+    //     },
+    //   };
 
-    app.patch('/users/admin/:id', async (req, res) => {
-      const id = req.params.id;
-      console.log(id);
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          role: 'admin',
-        },
-      };
-
-      const result = await usersCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
+    //   const result = await usersCollection.updateOne(filter, updateDoc);
+    //   res.send(result);
+    // });
 
     // WISHLIST----------------------->>>>
-    app.post('/wishlist', async (req, res) => {
+    app.post("/wishlist", async (req, res) => {
       try {
         const { user, movie } = req.body;
-        console.log(user?.email);
+        // console.log(user?.email);
 
-        // Check if the user exists
-        const existingUser = await usersCollection.findOne({
+        if (!user || !user?.email) {
+          return res.status(400).json({ error: "Invalid user data" });
+        }
+
+        const userExists = await usersCollection.findOne({
           email: user?.email,
         });
 
-        if (!existingUser) {
-          return res.status(404).json({ error: 'User not found' });
+        if (!userExists) {
+          return res.status(404).json({ error: "User not found" });
+
         }
 
         // Check if the movie is already in the wishlist
@@ -508,7 +602,7 @@ async function run() {
         if (alreadyInWishlist) {
           return res
             .status(200)
-            .json({ message: 'Already added to wishlist!' });
+            .json({ message: "Already added to wishlist!" });
         }
 
         const updateResult = await usersCollection.updateOne(
@@ -516,12 +610,13 @@ async function run() {
           { $addToSet: { wishlist: movie } }
         );
 
-        if (updateResult.modifiedCount === 1) {
-          return res.status(200).json({ message: 'Movie added to wishlist!' });
+        if (updateResult?.modifiedCount === 1) {
+          res.status(200).json({ message: "Movie added to wishlist!" });
+        } else if (updateResult?.matchedCount === 1) {
+          res.status(403).json({ message: "Already added to wishlist!" });
         } else {
-          return res
-            .status(500)
-            .json({ error: 'Failed to add movie to wishlist' });
+          res.status(404).json({ error: "User not found!" });
+
         }
 
         // if (!user || !user?.email) {
@@ -545,18 +640,18 @@ async function run() {
         // }
       } catch (error) {
         console.log(error);
-        res.status(500).json({ error: 'Internal server error!' });
+        res.status(500).json({ error: "Internal server error!" });
       }
     });
 
-    app.delete('/wishlist/:email/:movieId', async (req, res) => {
+    app.delete("/wishlist/:email/:movieId", async (req, res) => {
       try {
         const { email, movieId } = req.params;
         console.log(email, movieId);
 
         const user = await usersCollection.findOne({ email: email });
         if (!user) {
-          return res?.status(404).json({ error: 'User not found!' });
+          return res?.status(404).json({ error: "User not found!" });
         }
 
         const movieIndex = user?.wishlist?.findIndex(
@@ -564,7 +659,7 @@ async function run() {
         );
 
         if (movieIndex === -1) {
-          return res?.status(404).json({ error: 'Movie not found!' });
+          return res?.status(404).json({ error: "Movie not found!" });
         }
 
         user?.wishlist?.splice(movieIndex, 1);
@@ -1001,24 +1096,24 @@ async function run() {
       }
     });
 
-    // app.delete('/forumQueries/votes/:id', async (req, res) => {
-    //   const queryId = req.params.id;
+    app.delete('/forumQueries/votes/:id', async (req, res) => {
+      const queryId = req.params.id;
 
-    //   try {
-    //     const query = await queryCollection.findOne(queryId);
+      try {
+        const query = await queryCollection.findOne(queryId);
 
-    //     if (!query) {
-    //       res.status(404).json({ error: 'Query not found' });
-    //       return;
-    //     }
+        if (!query) {
+          res.status(404).json({ error: 'Query not found' });
+          return;
+        }
 
-    //     await queryCollection.deleteOne({ _id: queryId });
-    //     res.json({ message: 'Query deleted successfully' });
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ error: 'Internal Server Error' });
-    //   }
-    // });
+        await queryCollection.deleteOne({ _id: queryId });
+        res.json({ message: 'Query deleted successfully' });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
 
     app.delete('/forumQueries/:id', async (req, res) => {
       try {
@@ -1035,32 +1130,32 @@ async function run() {
       }
     });
 
-    // app.put('/forumQueries/:id', async (req, res) => {
-    //   try {
-    //     const queryId = req.params.id;
-    //     const newComment = req.body;
+    app.put('/forumQueries/:id', async (req, res) => {
+      try {
+        const queryId = req.params.id;
+        const newComment = req.body;
 
-    //     const existingQuery = await queryCollection.findOne({
-    //       _id: new ObjectId(queryId),
-    //     });
+        const existingQuery = await queryCollection.findOne({
+          _id: new ObjectId(queryId),
+        });
 
-    //     if (!existingQuery) {
-    //       return res?.status(404).json({ error: 'Query not found!' });
-    //     }
+        if (!existingQuery) {
+          return res?.status(404).json({ error: 'Query not found!' });
+        }
 
-    //     existingQuery.comments.push(newComment);
+        existingQuery.comments.push(newComment);
 
-    //     await queryCollection.updateOne(
-    //       { _id: new ObjectId(queryId) },
-    //       { $set: { comments: existingQuery?.comments } }
-    //     );
+        await queryCollection.updateOne(
+          { _id: new ObjectId(queryId) },
+          { $set: { comments: existingQuery?.comments } }
+        );
 
-    //     res.json({ success: true });
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).json({ error: 'Internal server error' });
-    //   }
-    // });
+        res.json({ success: true });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
     // CHECK SERVER CONNECTION:----------------------->>>>
     await client.db('admin').command({ ping: 1 });
