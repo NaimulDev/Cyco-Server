@@ -163,17 +163,12 @@ async function run() {
     });
 
     // Events Post 
-    app.post('/newEvent', async (req,res) =>{
+    app.post('/newEvent', async (req, res) => {
       try {
         const event = req.body;
-        const result = await eventsCollection.insertOne(event);
-        // res.send(result)
 
-        if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Event Added successfully' });
-        } else {
-          res.status(500).json({ error: 'Failed to save the Event' });
-        }
+        const result = await eventsCollection.insertOne(event);
+        res.send(result)
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -182,7 +177,7 @@ async function run() {
 
 
     // Events Get 
-    app.get('/events', async (req,res) =>{
+    app.get('/events', async (req, res) => {
       try {
         const result = await eventsCollection.find().toArray();
         res.status(200).json(result);
