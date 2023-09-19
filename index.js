@@ -47,33 +47,32 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
+// SOCKET-CONNECTION(Paused!):----------------------->>>>
+// const http = require('http');
+// const { Server } = require('socket.io');
+// const server = http.createServer(app);
+// const io = new Server(server, {
+//   cors: {
+//     origin: 'http://localhost:5173',
+//     // origin: 'https://cyco-inc.netlify.app',
+//     methods: ['GET', 'POST'],
+//   },
+// });
 
-// SOCKET-CONNECTION:----------------------->>>>
-const http = require('http');
-const { Server } = require('socket.io');
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: 'http://localhost:5173',
-    // origin: 'https://cyco-inc.netlify.app',
-    methods: ['GET', 'POST'],
-  },
-});
+// io.on('connection', (socket) => {
+//   console.log(`User Connected: ${socket.id}`);
 
-io.on('connection', (socket) => {
-  console.log(`User Connected: ${socket.id}`);
+//   // Handle disconnection
+//   socket.on('disconnect', () => {
+//     console.log(`User Disconnected: ${socket.id}`);
+//   });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log(`User Disconnected: ${socket.id}`);
-  });
-
-  socket.on('send_notification', (data) => {
-    console.log(data);
-    // Emit the received notification to all connected clients except the sender
-    socket.broadcast.emit('receive_notification', data);
-  });
-});
+//   socket.on('send_notification', (data) => {
+//     console.log(data);
+//     // Emit the received notification to all connected clients except the sender
+//     socket.broadcast.emit('receive_notification', data);
+//   });
+// });
 
 // SEND SUBSCRIPTION E-MAIL:----------------------->>>>
 const sendMail = (emailDate, emailAddress) => {
@@ -101,6 +100,7 @@ const sendMail = (emailDate, emailAddress) => {
 
 // DATABASE:----------------------->>>>
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cyco.ehplf2h.mongodb.net/?retryWrites=true&w=majority`;
+
 // const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-15myamh-shard-00-00.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-01.ehplf2h.mongodb.net:27017,ac-15myamh-shard-00-02.ehplf2h.mongodb.net:27017/?ssl=true&replicaSet=atlas-7hujl1-shard-0&authSource=admin&retryWrites=true&w=majority`;
 
 // CREATE MONGO-CLIENT:----------------------->>>>
@@ -128,7 +128,6 @@ async function run() {
     });
 
     // DATABASE COLLECTION:----------------------->>>>
-    const moviesCollection = client.db("cyco").collection("movies");
     const liveTVCollection = client.db("cyco").collection("liveTV");
     const usersCollection = client.db("cyco").collection("users");
     const seriesCollection = client.db("cyco").collection("series");
@@ -138,9 +137,11 @@ async function run() {
     const feedbacksCollection = client.db("cyco").collection("feedbacks");
     const reviewsCollection = client.db("cyco").collection("reviews");
     const movieReviewsCollection = client.db("cyco").collection("movieReviews");
+    const eventsCollection = client.db('cyco').collection("events");
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
+    const queryReportsCollection = client.db('cyco').collection('queryReports');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -211,6 +212,32 @@ async function run() {
       res.send(result)
     })
 
+    // Events Post 
+    app.post('/newEvent', async (req, res) => {
+      try {
+        const event = req.body;
+
+        const result = await eventsCollection.insertOne(event);
+        res.send(result)
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
+
+    // Events Get 
+    app.get('/events', async (req, res) => {
+      try {
+        const result = await eventsCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
+
     // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
       try {
@@ -269,20 +296,20 @@ async function run() {
       }
     });
 
-    app.delete("/tvChannel/:id", async (req, res) => {
+    app.delete('/tvChannel/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await liveTVCollection.deleteOne(query);
-      console.log("delete id", result);
+      console.log('delete id', result);
       if (result.deletedCount > 0) {
-        res.json({ success: true, message: "Item deleted successfully" });
+        res.json({ success: true, message: 'Item deleted successfully' });
       } else {
-        res.status(404).json({ success: false, message: "Item not found" });
+        res.status(404).json({ success: false, message: 'Item not found' });
       }
     });
 
     // SERIES:----------------------->>>>
-    app.get('/series', verifyJWT, async (req, res) => {
+    app.get('/series', async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
         res.status(200).json(result);
@@ -308,6 +335,83 @@ async function run() {
     // app.post("/register", async (req, res) => {
     //   try {
     //     const { username, email, password, role, photoUrl } = req.body;
+    // VERIFY ADMIN: (USE verifyJWT BEFORE USING verifyAdmin)--->>>>
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.decoded?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res
+          .status(403)
+          .send({ error: true, message: 'forbidden message' });
+      }
+      next();
+    };
+
+    // USERS:----------------------->>>>
+    app.get('/users', async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/user/:email', async (req, res) => {
+      try {
+        const { email } = req.params;
+        const userData = await usersCollection.findOne({ email });
+        if (userData) {
+          res.status(200).json(userData);
+        } else {
+          res.status(404).json({ error: 'User not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.post('/register', async (req, res) => {
+      try {
+        const { username, email, password, role, photoUrl } = req.body;
+
+        // Check if the email is already registered
+        const existingUser = await usersCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(409).json({ error: 'Email already registered' });
+        }
+
+        // Create a new user document
+        await usersCollection.insertOne({
+          username,
+          role,
+          email,
+          password,
+          photoUrl,
+          wishlist: [],
+        });
+
+        res.status(201).json({ message: 'User registered successfully' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/getUser', async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
+    app.put('/updateUserData/:email', async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email };
+      const options = { upsert: true };
 
     //     // Check if the email is already registered
     //     const existingUser = await usersCollection.findOne({ email });
@@ -452,6 +556,10 @@ async function run() {
     });
 
 
+    // Check admin
+    app.get('/users/admin/:email', async (req, res) => {
+      const email = req.params.email;
+
 
     // app.patch("/users/admin/:id", async (req, res) => {
     //   const id = req.params.id;
@@ -483,8 +591,10 @@ async function run() {
 
         if (!userExists) {
           return res.status(404).json({ error: "User not found" });
+
         }
 
+        // Check if the movie is already in the wishlist
         const alreadyInWishlist = userExists?.wishlist?.some(
           (wishlist) => wishlist?._id === movie?._id
         );
@@ -506,7 +616,28 @@ async function run() {
           res.status(403).json({ message: "Already added to wishlist!" });
         } else {
           res.status(404).json({ error: "User not found!" });
+
         }
+
+        // if (!user || !user?.email) {
+        //   return res.status(400).json({ error: 'Invalid user data' });
+        // }
+
+        // const userExists = await usersCollection.findOne({
+        //   email: user?.email,
+        // });
+
+        // if (!userExists) {
+        //   return res.status(404).json({ error: 'User not found' });
+        // }
+
+        // if (updateResult?.modifiedCount === 1) {
+        //   res.status(200).json({ message: 'Movie added to wishlist!' });
+        // } else if (updateResult?.matchedCount === 1) {
+        //   res.status(403).json({ message: 'Already added to wishlist!' });
+        // } else {
+        //   res.status(404).json({ error: 'User not found!' });
+        // }
       } catch (error) {
         console.log(error);
         res.status(500).json({ error: "Internal server error!" });
@@ -616,7 +747,6 @@ async function run() {
       }
     });
 
-    //get payment history in db
     // Create an API endpoint to fetch data
     app.get('/getPaymentHistory', async (req, res) => {
       try {
@@ -748,7 +878,59 @@ async function run() {
       }
     });
 
-    // Movie Reviews :----------------------->>>
+    // QUERY REPORT:
+    app.post('/report/query', async (req, res) => {
+      try {
+        const { queryId } = req.body;
+        console.log(queryId);
+
+        // Check if the query has already been reported by this user
+        const existingReport = await queryReportsCollection.findOne({
+          queryId: queryId,
+        });
+
+        if (existingReport) {
+          // The query has already been reported by this user
+          res.json({
+            success: false,
+            message: 'Query has already been reported by this user.',
+          });
+        } else {
+          // Create a new query report record in the collection
+          const report = {
+            queryId: queryId,
+            reportedAt: new Date(),
+          };
+
+          // Insert the report into the collection
+          const result = await queryReportsCollection.insertOne(report);
+
+          if (result.acknowledged && result.insertedId) {
+            // Report inserted successfully
+            res.json({
+              success: true,
+              message: 'Query reported successfully',
+              insertedId: result.insertedId,
+            });
+          } else {
+            // Report insertion failed
+            res
+              .status(500)
+              .json({ success: false, message: 'Failed to report the query.' });
+          }
+        }
+      } catch (error) {
+        console.error('Error reporting query:', error);
+        // Respond with an error message
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while reporting the query.',
+          error: error.message,
+        });
+      }
+    });
+
+    // MOVIE REVIEWS/FEEDBACK :----------------------->>>
     app.get('/movieReviews', async (req, res) => {
       try {
         const fetchedReviews = await movieReviewsCollection.find().toArray();
@@ -989,6 +1171,6 @@ app.get('/', (req, res) => {
   res.send('cyco-engine');
 });
 
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`SERVER IS RUNNING ON PORT ${port}`);
 });
