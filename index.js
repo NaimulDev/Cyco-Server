@@ -120,7 +120,7 @@ const client = new MongoClient(uri, {
 // ----------------------------->>>>
 async function run() {
   try {
-    client.connect((error) => {
+    await client.connect((error) => {
       if (error) {
         // console.log(error);
         return;
@@ -128,16 +128,16 @@ async function run() {
     });
 
     // DATABASE COLLECTION:----------------------->>>>
-    const moviesCollection = client.db('cyco').collection('movies');
-    const liveTVCollection = client.db('cyco').collection('liveTV');
-    const usersCollection = client.db('cyco').collection('users');
-    const seriesCollection = client.db('cyco').collection('series');
-    const queryCollection = client.db('cyco').collection('forumQueries');
-    const paymentsCollection = client.db('cyco').collection('payments');
-    const historyCollection = client.db('cyco').collection('history');
-    const feedbacksCollection = client.db('cyco').collection('feedbacks');
-    const reviewsCollection = client.db('cyco').collection('reviews');
-    const movieReviewsCollection = client.db('cyco').collection('movieReviews');
+    const liveTVCollection = client.db("cyco").collection("liveTV");
+    const usersCollection = client.db("cyco").collection("users");
+    const seriesCollection = client.db("cyco").collection("series");
+    const queryCollection = client.db("cyco").collection("forumQueries");
+    const paymentsCollection = client.db("cyco").collection("payments");
+    const historyCollection = client.db("cyco").collection("history");
+    const feedbacksCollection = client.db("cyco").collection("feedbacks");
+    const reviewsCollection = client.db("cyco").collection("reviews");
+    const movieReviewsCollection = client.db("cyco").collection("movieReviews");
+    const eventsCollection = client.db('cyco').collection("events");
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
@@ -151,6 +151,32 @@ async function run() {
       });
       res.send({ token });
     });
+
+    // Events Post 
+    app.post('/newEvent', async (req, res) => {
+      try {
+        const event = req.body;
+
+        const result = await eventsCollection.insertOne(event);
+        res.send(result)
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
+
+    // Events Get 
+    app.get('/events', async (req, res) => {
+      try {
+        const result = await eventsCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    })
+
 
     // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
