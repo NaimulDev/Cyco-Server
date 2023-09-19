@@ -122,22 +122,22 @@ async function run() {
   try {
     await client.connect((error) => {
       if (error) {
-        // console.log(error);
+        console.log(error);
         return;
       }
     });
 
     // DATABASE COLLECTION:----------------------->>>>
-    const liveTVCollection = client.db("cyco").collection("liveTV");
-    const usersCollection = client.db("cyco").collection("users");
-    const seriesCollection = client.db("cyco").collection("series");
-    const queryCollection = client.db("cyco").collection("forumQueries");
-    const paymentsCollection = client.db("cyco").collection("payments");
-    const historyCollection = client.db("cyco").collection("history");
-    const feedbacksCollection = client.db("cyco").collection("feedbacks");
-    const reviewsCollection = client.db("cyco").collection("reviews");
-    const movieReviewsCollection = client.db("cyco").collection("movieReviews");
-    const eventsCollection = client.db('cyco').collection("events");
+    const liveTVCollection = client.db('cyco').collection('liveTV');
+    const usersCollection = client.db('cyco').collection('users');
+    const seriesCollection = client.db('cyco').collection('series');
+    const queryCollection = client.db('cyco').collection('forumQueries');
+    const paymentsCollection = client.db('cyco').collection('payments');
+    const historyCollection = client.db('cyco').collection('history');
+    const feedbacksCollection = client.db('cyco').collection('feedbacks');
+    const reviewsCollection = client.db('cyco').collection('reviews');
+    const movieReviewsCollection = client.db('cyco').collection('movieReviews');
+    const eventsCollection = client.db('cyco').collection('events');
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
@@ -157,36 +157,38 @@ async function run() {
       const email = req.decoded.email;
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      if (user?.role !== "admin") {
-        return res.status(403).send({ error: true, message: "forbidden message" });
+      if (user?.role !== 'admin') {
+        return res
+          .status(403)
+          .send({ error: true, message: 'forbidden message' });
       }
       next();
     };
-    // USERS Management:----------------------->>>>
 
-    // insert user 
+    // USERS Management:----------------------->>>>
+    // insert user
     app.post('/users', async (req, res) => {
       const user = req.body;
-      console.log(user)
-      const query = { email: user.email }
+      console.log(user);
+      const query = { email: user.email };
       const existingUser = await usersCollection.findOne(query);
 
       if (existingUser) {
-        res.status(201).json({ message: 'user already exists' })
+        res.status(201).json({ message: 'user already exists' });
       }
 
       const result = await usersCollection.insertOne(user);
       res.status(200).json(result);
     });
 
-    // get all users 
+    // get all users
     app.get('/users', async (req, res) => {
-      const result = await usersCollection.find().toArray()
+      const result = await usersCollection.find().toArray();
       res.status(200).json(result);
-    })
+    });
 
     // Check admin
-    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -195,38 +197,37 @@ async function run() {
 
       const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === "admin" };
+      const result = { admin: user?.role === 'admin' };
       res.send(result);
     });
 
-    // set admin role 
+    // set admin role
     app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role: 'admin'
-        }
+          role: 'admin',
+        },
       };
       const result = await usersCollection.updateOne(filter, updateDoc);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
-    // Events Post 
+    // Events Post
     app.post('/newEvent', async (req, res) => {
       try {
         const event = req.body;
 
         const result = await eventsCollection.insertOne(event);
-        res.send(result)
+        res.send(result);
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
-    })
+    });
 
-
-    // Events Get 
+    // Events Get
     app.get('/events', async (req, res) => {
       try {
         const result = await eventsCollection.find().toArray();
@@ -235,8 +236,7 @@ async function run() {
       } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
       }
-    })
-
+    });
 
     // MOVIES:----------------------->>>>
     app.get('/movies', async (req, res) => {
@@ -318,35 +318,23 @@ async function run() {
       }
     });
 
-//  app.get("/user/:email", async (req, res) => {
-//       try {
-//         const { email } = req.params;
-//         const userData = await usersCollection.findOne({ email });
-//         if (userData) {
-//           res.status(200).json(userData);
-//         } else {
-//           res.status(404).json({ error: "User not found" });
-//         }
-//       } catch (error) {
-//         res.status(500).json({ error: "Internal server error" });
-//       }
-//     });
+    //  app.get("/user/:email", async (req, res) => {
+    //       try {
+    //         const { email } = req.params;
+    //         const userData = await usersCollection.findOne({ email });
+    //         if (userData) {
+    //           res.status(200).json(userData);
+    //         } else {
+    //           res.status(404).json({ error: "User not found" });
+    //         }
+    //       } catch (error) {
+    //         res.status(500).json({ error: "Internal server error" });
+    //       }
+    //     });
 
     // app.post("/register", async (req, res) => {
     //   try {
     //     const { username, email, password, role, photoUrl } = req.body;
-    // VERIFY ADMIN: (USE verifyJWT BEFORE USING verifyAdmin)--->>>>
-    const verifyAdmin = async (req, res, next) => {
-      const email = req?.decoded?.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== 'admin') {
-        return res
-          .status(403)
-          .send({ error: true, message: 'forbidden message' });
-      }
-      next();
-    };
 
     // USERS:----------------------->>>>
     app.get('/users', async (req, res) => {
@@ -413,97 +401,100 @@ async function run() {
       const query = { email: email };
       const options = { upsert: true };
 
-    //     // Check if the email is already registered
-    //     const existingUser = await usersCollection.findOne({ email });
-    //     if (existingUser) {
-    //       return res.status(409).json({ error: "Email already registered" });
-    //     }
+      // Check if the email is already registered
+      try {
+        const existingUser = await usersCollection.findOne({ email });
+        if (existingUser) {
+          return res.status(409).json({ error: 'Email already registered' });
+        }
 
-    //     // Create a new user document
-    //     await usersCollection.insertOne({
-    //       username,
-    //       role,
-    //       email,
-    //       password,
-    //       photoUrl,
-    //       wishlist: [],
-    //     });
+        // Create a new user document
+        await usersCollection.insertOne({
+          username,
+          role,
+          email,
+          password,
+          photoUrl,
+          wishlist: [],
+        });
 
-    //     res.status(201).json({ message: "User registered successfully" });
-    //   } catch (error) {
-    //     res.status(500).json({ error: "Internal server error" });
-    //   }
-    // });
-    // app.get("/getUser", async (req, res) => {
-    //   try {
-    //     const result = await usersCollection.find().toArray();
-    //     res.status(200).json(result);
-    //   } catch (error) {
-    //     res.status(500).json({ error: "Internal Server Error" });
-    //   }
-    // });
+        res.status(201).json({ message: 'User registered successfully' });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/getUser', async (req, res) => {
+      try {
+        const result = await usersCollection.find().toArray();
+        res.status(200).json(result);
+      } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    });
+
     // edit user
-    // app.put("/updateUserData/:id", async (req, res) => {
-    //   const data = req.body;
-    //   const filter = { _id: new ObjectId(req.params.id) };
-    //   const updateDoc = {
-    //     $set: data,
-    //   };
-    //   try {
-    //     const result = await usersCollection.updateMany(filter, updateDoc);
-    //     res.send(result);
-    //   } catch (error) {
-    //     res.status(500).send(error);
-    //   }
-    // });
+    app.put('/updateUserData/:id', async (req, res) => {
+      const data = req.body;
+      const filter = { _id: new ObjectId(req.params.id) };
+      const updateDoc = {
+        $set: data,
+      };
+      try {
+        const result = await usersCollection.updateMany(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send(error);
+      }
+    });
 
     // Route to save watch time
-    // app.post("/save-watch-time", async (req, res) => {
-    //   try {
-    //     const { userId, movieId, duration } = req.body;
+    app.post('/save-watch-time', async (req, res) => {
+      try {
+        const { userId, movieId, duration } = req.body;
 
-    //     const watchTimeData = {
-    //       userId,
-    //       movieId,
-    //       startTime: new Date(),
-    //       endTime: new Date(new Date().getTime() + duration * 1000),
-    //     };
+        const watchTimeData = {
+          userId,
+          movieId,
+          startTime: new Date(),
+          endTime: new Date(new Date().getTime() + duration * 1000),
+        };
 
-    //     // Save the watch time data to your MongoDB collection
-    //     const result = await usersCollection.insertOne(watchTimeData);
+        // Save the watch time data to your MongoDB collection
+        const result = await usersCollection.insertOne(watchTimeData);
 
-    //     if (result.insertedCount === 1) {
-    //       res.status(201).json({ message: "Watch time saved successfully" });
-    //     } else {
-    //       res.status(500).json({ error: "Failed to save watch time" });
-    //     }
-    //   } catch (error) {
-    //     console.error("Error saving watch time:", error);
-    //     res.status(500).json({ error: "Internal server error" });
-    //   }
-    // });
+        if (result.insertedCount === 1) {
+          res.status(201).json({ message: 'Watch time saved successfully' });
+        } else {
+          res.status(500).json({ error: 'Failed to save watch time' });
+        }
+      } catch (error) {
+        console.error('Error saving watch time:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
     // Route to get watch time analytics for a user
-    // app.get("/user-watch-time/:userId", async (req, res) => {
-    //   try {
-    //     const userId = req.params.userId;
+    app.get('/user-watch-time/:userId', async (req, res) => {
+      try {
+        const userId = req.params.userId;
 
-    //     // Calculate total watch time for the user
-    //     const watchTimeRecords = await usersCollection
-    //       .find({ userId })
-    //       .toArray();
+        // Calculate total watch time for the user
+        const watchTimeRecords = await usersCollection
+          .find({ userId })
+          .toArray();
 
-    //     const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
-    //       const durationInSeconds = (record.endTime - record.startTime) / 1000;
-    //       return acc + durationInSeconds;
-    //     }, 0);
+        const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
+          const durationInSeconds = (record.endTime - record.startTime) / 1000;
+          return acc + durationInSeconds;
+        }, 0);
 
-    //     res.status(200).json({ totalWatchTime });
-    //   } catch (error) {
-    //     console.error("Error fetching watch time analytics:", error);
-    //     res.status(500).json({ error: "Internal server error" });
-    //   }
-    // });
+        res.status(200).json({ totalWatchTime });
+      } catch (error) {
+        console.error('Error fetching watch time analytics:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
 
     // manageSubscriptions:----------------------->>>>
     app.get('/getManageSubscriptions', async (req, res) => {
@@ -555,11 +546,9 @@ async function run() {
       res.send(result);
     });
 
-
     // Check admin
-    app.get('/users/admin/:email', async (req, res) => {
-      const email = req.params.email;
-
+    // app.get('/users/admin/:email', async (req, res) => {
+    //   const email = req.params.email;
 
     // app.patch("/users/admin/:id", async (req, res) => {
     //   const id = req.params.id;
@@ -576,13 +565,13 @@ async function run() {
     // });
 
     // WISHLIST----------------------->>>>
-    app.post("/wishlist", async (req, res) => {
+    app.post('/wishlist', async (req, res) => {
       try {
         const { user, movie } = req.body;
         // console.log(user?.email);
 
         if (!user || !user?.email) {
-          return res.status(400).json({ error: "Invalid user data" });
+          return res.status(400).json({ error: 'Invalid user data' });
         }
 
         const userExists = await usersCollection.findOne({
@@ -590,8 +579,7 @@ async function run() {
         });
 
         if (!userExists) {
-          return res.status(404).json({ error: "User not found" });
-
+          return res.status(404).json({ error: 'User not found' });
         }
 
         // Check if the movie is already in the wishlist
@@ -602,7 +590,7 @@ async function run() {
         if (alreadyInWishlist) {
           return res
             .status(200)
-            .json({ message: "Already added to wishlist!" });
+            .json({ message: 'Already added to wishlist!' });
         }
 
         const updateResult = await usersCollection.updateOne(
@@ -611,12 +599,11 @@ async function run() {
         );
 
         if (updateResult?.modifiedCount === 1) {
-          res.status(200).json({ message: "Movie added to wishlist!" });
+          res.status(200).json({ message: 'Movie added to wishlist!' });
         } else if (updateResult?.matchedCount === 1) {
-          res.status(403).json({ message: "Already added to wishlist!" });
+          res.status(403).json({ message: 'Already added to wishlist!' });
         } else {
-          res.status(404).json({ error: "User not found!" });
-
+          res.status(404).json({ error: 'User not found!' });
         }
 
         // if (!user || !user?.email) {
@@ -640,18 +627,18 @@ async function run() {
         // }
       } catch (error) {
         console.log(error);
-        res.status(500).json({ error: "Internal server error!" });
+        res.status(500).json({ error: 'Internal server error!' });
       }
     });
 
-    app.delete("/wishlist/:email/:movieId", async (req, res) => {
+    app.delete('/wishlist/:email/:movieId', async (req, res) => {
       try {
         const { email, movieId } = req.params;
         console.log(email, movieId);
 
         const user = await usersCollection.findOne({ email: email });
         if (!user) {
-          return res?.status(404).json({ error: "User not found!" });
+          return res?.status(404).json({ error: 'User not found!' });
         }
 
         const movieIndex = user?.wishlist?.findIndex(
@@ -659,7 +646,7 @@ async function run() {
         );
 
         if (movieIndex === -1) {
-          return res?.status(404).json({ error: "Movie not found!" });
+          return res?.status(404).json({ error: 'Movie not found!' });
         }
 
         user?.wishlist?.splice(movieIndex, 1);
