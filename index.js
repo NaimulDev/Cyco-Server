@@ -170,9 +170,9 @@ async function run() {
         // res.send(result)
 
         if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Movie saved successfully' });
+          res.status(201).json({ message: 'Event Added successfully' });
         } else {
-          res.status(500).json({ error: 'Failed to save the movie' });
+          res.status(500).json({ error: 'Failed to save the Event' });
         }
       } catch (error) {
         console.error(error);
