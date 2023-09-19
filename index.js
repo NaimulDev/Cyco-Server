@@ -799,19 +799,23 @@ async function run() {
     });
 
     // QUERY COMMENT ENDPOINT:
-    app.post('/forumQueries/:id/comments', async (req, res) => {
+    app.post('/forumQueries/comments/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
         const newComment = req.body.comment;
-        const userId = req.user?._id;
+        // const userId = req.user?._id;
+
+        console.log(queryId, newComment);
 
         const updatedQuery = await queryCollection.updateOne(
           { _id: new ObjectId(queryId) },
-          { $addToSet: { comments: newComment, userId } }
+          { $addToSet: { comments: newComment } }
         );
 
+        console.log(updatedQuery);
+
         if (updatedQuery.modifiedCount === 1) {
-          res.json({ success: true });
+          res.json({ success: true, comment: newComment });
         } else {
           res.json({ success: false });
         }
@@ -821,7 +825,7 @@ async function run() {
       }
     });
 
-    app.get('/forumQueries/:id/comments', async (req, res) => {
+    app.get('/forumQueries/comments/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
 
