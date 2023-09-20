@@ -135,13 +135,13 @@ async function run() {
     const paymentsCollection = client.db('cyco').collection('payments');
     const historyCollection = client.db('cyco').collection('history');
     const feedbacksCollection = client.db('cyco').collection('feedbacks');
-    const reviewsCollection = client.db('cyco').collection('reviews');
     const movieReviewsCollection = client.db('cyco').collection('movieReviews');
     const eventsCollection = client.db('cyco').collection('events');
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
-    const queryReportsCollection = client.db('cyco').collection('queryReports');
+      const queryReportsCollection = client.db('cyco').collection('queryReports');
+      // const reviewsCollection = client.db('cyco').collection('reviews');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
