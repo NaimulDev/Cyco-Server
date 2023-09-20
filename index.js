@@ -142,6 +142,7 @@ async function run() {
       .db('cyco')
       .collection('manageSubscriptions');
     const queryReportsCollection = client.db('cyco').collection('queryReports');
+    const moviesCollection = client.db('cyco').collection('movies');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
