@@ -47,6 +47,43 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
+// VERIFY ADMIN: (USE verifyJWT BEFORE USING verifyAdmin)--->>>>
+const verifyAdmin = async (req, res, next) => {
+  const email = req.decoded.email;
+  const query = { email: email };
+  const user = await usersCollection.findOne(query);
+  if (user?.role !== 'admin') {
+    return res.status(403).send({ error: true, message: 'forbidden message' });
+  }
+  next();
+};
+
+// SOCKET-CONNECTION:----------------------->>>>
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    // origin: 'https://cyco-inc.netlify.app',
+    methods: ['GET', 'POST'],
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log(`User Connected: ${socket.id}`);
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`User Disconnected: ${socket.id}`);
+  });
+
+  socket.on('send_notification', (data) => {
+    console.log(data);
+    // Emit the received notification to all connected clients except the sender
+    socket.broadcast.emit('receive_notification', data);
+  });
+});
 // SOCKET-CONNECTION(Paused!):----------------------->>>>
 // const http = require('http');
 // const { Server } = require('socket.io');
@@ -141,8 +178,8 @@ async function run() {
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
-    const queryReportsCollection = client.db('cyco').collection('queryReports');
     const moviesCollection = client.db('cyco').collection('movies');
+    const queryReportsCollection = client.db('cyco').collection('queryReports');
 
     // POST JWT:----------------------->>>>
     app.post('/jwt', (req, res) => {
@@ -297,6 +334,89 @@ async function run() {
       }
     });
 
+    // app.delete("/liveTV/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   console.log(id);
+    //   const query = { _id: new ObjectId(id) };
+    //   const result = await liveTVCollection.deleteOne(query);
+    //   console.log("delete id", result);
+    //   if (result.deletedCount > 0) {
+    //     res.json({ success: true, message: "Item deleted successfully" });
+    //   } else {
+    //     res.status(404).json({ success: false, message: "Item not found" });
+    //   }
+    // });
+
+    // Define a route for retrieving channel information by ID
+    app.get('/liveTV/:id', async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const channel = await liveTVCollection.findOne(query);
+
+        if (channel) {
+          // Channel found, send it as a response
+          res.json({ success: true, data: channel });
+        } else {
+          // No matching channel found
+          res
+            .status(404)
+            .json({ success: false, message: 'Channel not found' });
+        }
+      } catch (error) {
+        // Handle any errors that occurred during the retrieval process
+        console.error('Error:', error);
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while retrieving the channel',
+        });
+      }
+    });
+
+    app.delete('/liveTV/:id', async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const result = await liveTVCollection.deleteOne(query);
+
+        if (result.deletedCount > 0) {
+          // Successfully deleted the channel
+          res.json({ success: true, message: 'Item deleted successfully' });
+        } else {
+          // No matching channel found
+          res.status(404).json({ success: false, message: 'Item not found' });
+        }
+      } catch (error) {
+        // Handle any errors that occurred during the deletion process
+        console.error('Error:', error);
+        res.status(500).json({
+          success: false,
+          message: 'An error occurred while deleting the item',
+        });
+      }
+    });
+
+    app.patch('/liveTV/:id', async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const filter = { _id: new ObjectId(id) };
+        const result = await liveTVCollection.updateOne(filter, updateDoc);
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ error: 'Channel not found' });
+        }
+
+        res
+          .status(200)
+          .json({ message: 'Channel updated successfully', result });
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
     app.delete('/tvChannel/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -310,6 +430,7 @@ async function run() {
     });
 
     // SERIES:----------------------->>>>
+
     app.get('/series', async (req, res) => {
       try {
         const result = await seriesCollection.find().toArray();
@@ -548,19 +669,40 @@ async function run() {
     });
 
     // Check admin
-    // app.get('/users/admin/:email', async (req, res) => {
-    //   const email = req.params.email;
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      // app.get('/users/admin/:email', async (req, res) => {
+      //   const email = req.params.email;
 
-    // app.patch("/users/admin/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   // console.log(id);
-    //   const filter = { _id: new ObjectId(id) };
-    //   const updateDoc = {
-    //     $set: {
-    //       role: "admin",
-    //     },
-    //   };
+      // app.patch("/users/admin/:id", async (req, res) => {
+      //   const id = req.params.id;
+      //   // console.log(id);
+      //   const filter = { _id: new ObjectId(id) };
+      //   const updateDoc = {
+      //     $set: {
+      //       role: "admin",
+      //     },
+      //   };
 
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' };
+      res.send(result);
+    });
+
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'admin',
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
     //   const result = await usersCollection.updateOne(filter, updateDoc);
     //   res.send(result);
     // });
@@ -870,6 +1012,8 @@ async function run() {
       }
     });
 
+    // Movie Reviews :----------------------->>>
+    // app.get("/movieReviews", async (req, res) => {
     // QUERY REPORT:
     app.post('/report/query', async (req, res) => {
       try {
