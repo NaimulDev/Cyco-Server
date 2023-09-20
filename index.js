@@ -185,17 +185,19 @@ async function run() {
     })
 
     // Check admin
-    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
-
-      if (req.decoded.email !== email) {
-        res.send({ admin: false });
+      console.log('hello')
+      try {
+        const query = { email: email };
+        const user = await usersCollection.findOne(query);
+        console.log(user)
+        const result = { admin: user?.role === 'admin' };
+        res.send(result);
+      } catch (error) {
+        console.error('Error occurred while querying the database:', error);
+        res.status(500).send({ error: 'Internal server error' });
       }
-
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === "admin" };
-      res.send(result);
     });
 
     // set admin role 
