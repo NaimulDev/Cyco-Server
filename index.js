@@ -445,6 +445,19 @@ async function run() {
       }
     });
 
+    // Event Remove:
+    app.delete('/events/:id', async (req, res) => {
+
+      try {
+        const EvetnId = req.params.id;
+        const id = { _id: new ObjectId(EvetnId) }
+        const result = await eventsCollection.deleteOne(id);
+        res.status(200).json(result);
+      } catch (err) {
+        res.status(500).json({error: 'Hey Dev Please check some issues here'});
+      }
+    })
+
     // ===-===-===-===-===-\\
     // MOVIES:--------------||------------------------>>>>
     // ===-===-===-===-===-//
