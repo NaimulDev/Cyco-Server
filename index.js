@@ -707,7 +707,6 @@ async function run() {
       }
     });
 
-    // Update A room
     app.put('/updateManageSubscriptions/:id', async (req, res) => {
       const data = req.body;
       console.log(data);
@@ -922,7 +921,7 @@ async function run() {
       }
     });
 
-    // Create an API endpoint to fetch data
+    // Fetch payment history data:
     app.get('/getPaymentHistory', async (req, res) => {
       try {
         const data = await paymentsCollection.find().toArray(); // Replace with your query
@@ -955,11 +954,9 @@ async function run() {
     app.post('/forumQueries', async (req, res) => {
       try {
         const newQuery = req.body;
-        // console.log(req.body);
 
         const forumQueries = await queryCollection.insertOne(newQuery);
         res.send(forumQueries);
-        // console.log(forumQueries);
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
@@ -976,7 +973,7 @@ async function run() {
       }
     });
 
-    // QUERY COMMENT ENDPOINT:
+    // Query comments::
     app.post('/forumQueries/comments/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
@@ -1017,7 +1014,6 @@ async function run() {
         }
 
         const comments = query?.comments;
-        console.log(comments);
         res.json({ success: true, comments });
       } catch (error) {
         console.log('Error fetching comments:', error);
@@ -1025,7 +1021,7 @@ async function run() {
       }
     });
 
-    // UPDATE QUERY VIEWS BY ID:
+    // Update views count:
     app.put('/forumQueries/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
@@ -1047,7 +1043,7 @@ async function run() {
       }
     });
 
-    // QUERY REPORT:
+    // Query report:
     app.post('/report/query', async (req, res) => {
       try {
         const { queryId } = req.body;
@@ -1099,7 +1095,7 @@ async function run() {
       }
     });
 
-    // UPDATE QUERY VOTE COUNT:
+    // Updated query vote count:
     // const updateVoteCount = async (queryId, newVoteCount) => {
     //   try {
     //     const updateQuery = await queryCollection.updateOne(
@@ -1118,8 +1114,8 @@ async function run() {
     //   }
     // };
 
+    // Creating a vote count:
     app.put('/forumQueries/:queryId', async (req, res) => {
-      // const queryId = req.params.id;
       const queryId = req.params.queryId;
       const { voteCount } = req.body;
       const voteType = req.body;
@@ -1200,6 +1196,7 @@ async function run() {
       }
     });
 
+    // Delete a query object:
     app.delete('/forumQueries/:id', async (req, res) => {
       try {
         const objectId = req.params.id;
@@ -1215,6 +1212,7 @@ async function run() {
       }
     });
 
+    // Update a query object:
     app.put('/forumQueries/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
