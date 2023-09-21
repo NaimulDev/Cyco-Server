@@ -280,35 +280,10 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/user/:id", async (req, res) => {
-      const id = req.params.id;
-
-      try {
-        const query = { _id: new ObjectId(id) };
-        const user = await usersCollection.findOne(query);
-
-        if (user) {
-          // user found, send it as a response
-          res.json({ success: true, data: user });
-        } else {
-          // No matching user found
-          res.status(404).json({ success: false, message: "user not found" });
-        }
-      } catch (error) {
-        // Handle any errors that occurred during the retrieval process
-        console.error("Error:", error);
-        res.status(500).json({
-          success: false,
-          message: "An error occurred while retrieving the user",
-        });
-      }
-    });
-
     app.delete("/user/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await usersCollection.deleteOne(query);
-      console.log("delete id", result);
       if (result.deletedCount > 0) {
         res.json({ success: true, message: "user deleted successfully" });
       } else {
