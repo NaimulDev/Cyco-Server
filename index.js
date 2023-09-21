@@ -240,6 +240,7 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+    
 
     // get all users:
     app.get('/users', async (req, res) => {
@@ -254,15 +255,17 @@ async function run() {
     // Check admin:
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
-
-      if (req.decoded.email !== email) {
-        res.send({ admin: false });
+      console.log('hello')
+      try {
+        const query = { email: email };
+        const user = await usersCollection.findOne(query);
+        console.log(user)
+        const result = { admin: user?.role === 'admin' };
+        res.send(result);
+      } catch (error) {
+        console.error('Error occurred while querying the database:', error);
+        res.status(500).send({ error: 'Internal server error' });
       }
-
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' };
-      res.send(result);
     });
 
     // set admin role:
@@ -303,6 +306,19 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
+
+    // Event Remove:
+    app.delete('/events/:id', async (req, res) => {
+
+      try {
+        const EvetnId = req.params.id;
+        const id = { _id: new ObjectId(EvetnId) }
+        const result = await eventsCollection.deleteOne(id);
+        res.status(200).json(result);
+      } catch (err) {
+        res.status(500).json({error: 'Hey Dev Please check some issues here'});
+      }
+    })
 
     // ===-===-===-===-===-\\
     // MOVIES:--------------||------------------------>>>>
