@@ -223,14 +223,15 @@ async function run() {
       console.log(user);
       const query = { email: user.email };
       const existingUser = await usersCollection.findOne(query);
-
+    
       if (existingUser) {
-        res.status(201).json({ message: 'user already exists' });
+        return res.status(201).json({ message: 'user already exists' });
       }
-
+    
       const result = await usersCollection.insertOne(user);
       res.status(200).json(result);
     });
+    
 
     // get all users:
     app.get('/users', async (req, res) => {
@@ -245,15 +246,17 @@ async function run() {
     // Check admin:
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
-
-      if (req.decoded.email !== email) {
-        res.send({ admin: false });
+      console.log('hello')
+      try {
+        const query = { email: email };
+        const user = await usersCollection.findOne(query);
+        console.log(user)
+        const result = { admin: user?.role === 'admin' };
+        res.send(result);
+      } catch (error) {
+        console.error('Error occurred while querying the database:', error);
+        res.status(500).send({ error: 'Internal server error' });
       }
-
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' };
-      res.send(result);
     });
 
     // set admin role:
@@ -269,155 +272,6 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/user/:email', async (req, res) => {
-      try {
-        const { email } = req.params;
-        const userData = await usersCollection.findOne({ email });
-        if (userData) {
-          res.status(200).json(userData);
-        } else {
-          res.status(404).json({ error: 'User not found' });
-        }
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.post('/register', async (req, res) => {
-      try {
-        const { username, email, password, role, photoUrl } = req.body;
-
-        // Check if the email is already registered
-        const existingUser = await usersCollection.findOne({ email });
-        if (existingUser) {
-          return res.status(409).json({ error: 'Email already registered' });
-        }
-
-        // Create a new user document
-        await usersCollection.insertOne({
-          username,
-          role,
-          email,
-          password,
-          photoUrl,
-          wishlist: [],
-        });
-
-        res.status(201).json({ message: 'User registered successfully' });
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.get('/getUser', async (req, res) => {
-      try {
-        const result = await usersCollection.find().toArray();
-        res.status(200).json(result);
-      } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
-      }
-    });
-
-    app.put('/updateUserData/:email', async (req, res) => {
-      const email = req.params.email;
-      const user = req.body;
-      const query = { email: email };
-      const options = { upsert: true };
-
-      // Check if the email is already registered
-      try {
-        const existingUser = await usersCollection.findOne({ email });
-        if (existingUser) {
-          return res.status(409).json({ error: 'Email already registered' });
-        }
-
-        // Create a new user document
-        await usersCollection.insertOne({
-          username,
-          role,
-          email,
-          password,
-          photoUrl,
-          wishlist: [],
-        });
-
-        res.status(201).json({ message: 'User registered successfully' });
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    app.get('/getUser', async (req, res) => {
-      try {
-        const result = await usersCollection.find().toArray();
-        res.status(200).json(result);
-      } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
-      }
-    });
-
-    // edit user
-    app.put('/updateUserData/:id', async (req, res) => {
-      const data = req.body;
-      const filter = { _id: new ObjectId(req.params.id) };
-      const updateDoc = {
-        $set: data,
-      };
-      try {
-        const result = await usersCollection.updateMany(filter, updateDoc);
-        res.send(result);
-      } catch (error) {
-        res.status(500).send(error);
-      }
-    });
-
-    // Route to save watch time
-    app.post('/save-watch-time', async (req, res) => {
-      try {
-        const { userId, movieId, duration } = req.body;
-
-        const watchTimeData = {
-          userId,
-          movieId,
-          startTime: new Date(),
-          endTime: new Date(new Date().getTime() + duration * 1000),
-        };
-
-        // Save the watch time data to your MongoDB collection
-        const result = await usersCollection.insertOne(watchTimeData);
-
-        if (result.insertedCount === 1) {
-          res.status(201).json({ message: 'Watch time saved successfully' });
-        } else {
-          res.status(500).json({ error: 'Failed to save watch time' });
-        }
-      } catch (error) {
-        console.error('Error saving watch time:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
-    // Route to get watch time analytics for a user
-    app.get('/user-watch-time/:userId', async (req, res) => {
-      try {
-        const userId = req.params.userId;
-
-        // Calculate total watch time for the user
-        const watchTimeRecords = await usersCollection
-          .find({ userId })
-          .toArray();
-
-        const totalWatchTime = watchTimeRecords.reduce((acc, record) => {
-          const durationInSeconds = (record.endTime - record.startTime) / 1000;
-          return acc + durationInSeconds;
-        }, 0);
-
-        res.status(200).json({ totalWatchTime });
-      } catch (error) {
-        console.error('Error fetching watch time analytics:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
 
     // ===-===-===-===-===-\\
     // EVENTS:--------------||------------------------>>>>
