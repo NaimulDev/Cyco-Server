@@ -56,6 +56,7 @@ const verifyJWT = (req, res, next) => {
 // ===-===-===-===-===-===-\\
 // SOCKET-CONNECTION:-------||------------------------>>>>
 // ===-===-===-===-===-===-//
+
 // const http = require('http');
 // const { Server } = require('socket.io');
 // const server = http.createServer(app);
@@ -219,17 +220,25 @@ async function run() {
     // USERS:---------------||------------------------>>>>
     // ===-===-===-===-===-//
     app.post('/users', async (req, res) => {
-      const user = req.body;
-      console.log(user);
-      const query = { email: user.email };
-      const existingUser = await usersCollection.findOne(query);
-    
-      if (existingUser) {
-        return res.status(201).json({ message: 'user already exists' });
+      try {
+        const user = req.body;
+        console.log(user);
+        const query = { email: user.email };
+        const existingUser = await usersCollection.findOne(query);
+
+        if (existingUser) {
+          return res.status(409).json({ message: 'User already exists' });
+        }
+
+        const result = await usersCollection.insertOne(user);
+        res.status(201).json({
+          message: 'User created successfully',
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
       }
-    
-      const result = await usersCollection.insertOne(user);
-      res.status(200).json(result);
     });
     
 
@@ -271,7 +280,6 @@ async function run() {
       const result = await usersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-
 
     // ===-===-===-===-===-\\
     // EVENTS:--------------||------------------------>>>>
@@ -315,16 +323,6 @@ async function run() {
     // ===-===-===-===-===-\\
     // MOVIES:--------------||------------------------>>>>
     // ===-===-===-===-===-//
-    app.get('/movies', async (req, res) => {
-      try {
-        const result = await moviesCollection.find().toArray();
-        res.status(200).json(result);
-        // return result;
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
@@ -339,6 +337,29 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.get('/movies', async (req, res) => {
+      try {
+        const result = await moviesCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.post('/movieReviews', async (req, res) => {
+      try {
+        const newMovieReview = req.body;
+        const movieReviews = await movieReviewsCollection.insertOne(
+          newMovieReview
+        );
+        res.send(movieReviews);
+      } catch (error) {
+        console.log(error);
+        res.status(500).join({ error: 'Internal server error' });
       }
     });
 
@@ -374,32 +395,6 @@ async function run() {
       }
     });
 
-    app.post('/movieReviews', async (req, res) => {
-      try {
-        const newMovieReview = req.body;
-        const movieReviews = await movieReviewsCollection.insertOne(
-          newMovieReview
-        );
-        res.send(movieReviews);
-      } catch (error) {
-        console.log(error);
-        res.status(500).join({ error: 'Internal server error' });
-      }
-    });
-
-    app.get('/feedbacks', async (req, res) => {
-      try {
-        // Query the collection to retrieve all feedbacks
-        const feedbacks = await feedbacksCollection.find({}).toArray();
-
-        // Return the feedbacks as a JSON response
-        res.status(200).json(feedbacks);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-      }
-    });
-
     app.post('/feedbacks', async (req, res) => {
       try {
         const newFeedback = req.body; // Assuming your input field is named "feedback"
@@ -417,6 +412,19 @@ async function run() {
         //             message: "Feedback added successfully",
         //             insertedId: result.insertedId,
         //           });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    app.get('/feedbacks', async (req, res) => {
+      try {
+        // Query the collection to retrieve all feedbacks
+        const feedbacks = await feedbacksCollection.find({}).toArray();
+
+        // Return the feedbacks as a JSON response
+        res.status(200).json(feedbacks);
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -840,7 +848,7 @@ async function run() {
       }
     });
 
-    // Query comments::
+    // Query comments:
     app.post('/forumQueries/comments/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
