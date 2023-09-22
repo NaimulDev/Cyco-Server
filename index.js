@@ -243,6 +243,47 @@ async function run() {
       }
     });
 
+    // update an user 
+     app.put('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    // Create the update object based on the fields provided in the request
+    const updateObject = {};
+    if (updateData.name) {
+      updateObject.name = updateData.name;
+    }
+    if (updateData.email) {
+      updateObject.email = updateData.email;
+    }
+    if (updateData.photo) {
+      updateObject.photo = updateData.photo;
+    }
+
+    // Ensure there's at least one field to update
+    if (Object.keys(updateObject).length === 0) {
+      return res.status(400).send('No fields to update.');
+    }
+
+    // Update the user document based on the provided fields
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateObject }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).send('User not found.');
+    }
+
+    res.send('User updated successfully.');
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).send('Internal server error.');
+  }
+});
+
+
     // Check admin:
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
