@@ -33,6 +33,7 @@ app.use((err, req, res, next) => {
 // ===-===-===-===-===-===-//
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
+
   if (!authorization) {
     return res
       .status(401)
@@ -40,7 +41,7 @@ const verifyJWT = (req, res, next) => {
   }
 
   // BEARER TOKEN:
-  const token = authorization.split(' ')[1];
+  const token = authorization?.split(' ')[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
@@ -53,61 +54,36 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-// ===-===-===-===-===-===-\\
-// SOCKET-CONNECTION:-------||------------------------>>>>
-// ===-===-===-===-===-===-//
-// const http = require('http');
-// const { Server } = require('socket.io');
-// const server = http.createServer(app);
-// const io = new Server(server, {
-//   cors: {
-//     origin: 'http://localhost:5173',
-//     // origin: 'https://cyco-inc.netlify.app',
-//     methods: ['GET', 'POST'],
-//   },
-// });
+// const verifyJWT = (req, res, next) => {
+//   const authorizationHeader = req.headers.authorization;
 
-// io.on('connection', (socket) => {
-//   console.log(`User Connected: ${socket.id}`);
+//   if (!authorizationHeader) {
+//     return res
+//       .status(401)
+//       .json({ error: true, message: 'Unauthorized access' });
+//   }
 
-//   // Handle disconnection
-//   socket.on('disconnect', () => {
-//     console.log(`User Disconnected: ${socket.id}`);
+//   const [bearer, token] = authorizationHeader.split(' ');
+
+//   if (bearer !== 'Bearer' || !token) {
+//     return res
+//       .status(401)
+//       .json({ error: true, message: 'Unauthorized access' });
+//   }
+
+//   // Verify the JWT token using your secret or public key
+//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+//     if (err) {
+//       return res
+//         .status(401)
+//         .json({ error: true, message: 'Unauthorized access' });
+//     }
+
+//     req.decoded = decoded;
+
+//     next();
 //   });
-
-//   socket.on('send_notification', (data) => {
-//     console.log(data);
-//     // Emit the received notification to all connected clients except the sender
-//     socket.broadcast.emit('receive_notification', data);
-//   });
-// });
-
-// SOCKET-CONNECTION(Paused!):----------------------->>>>
-// const http = require('http');
-// const { Server } = require('socket.io');
-// const server = http.createServer(app);
-// const io = new Server(server, {
-//   cors: {
-//     origin: 'http://localhost:5173',
-//     // origin: 'https://cyco-inc.netlify.app',
-//     methods: ['GET', 'POST'],
-//   },
-// });
-
-// io.on('connection', (socket) => {
-//   console.log(`User Connected: ${socket.id}`);
-
-//   // Handle disconnection
-//   socket.on('disconnect', () => {
-//     console.log(`User Disconnected: ${socket.id}`);
-//   });
-
-//   socket.on('send_notification', (data) => {
-//     console.log(data);
-//     // Emit the received notification to all connected clients except the sender
-//     socket.broadcast.emit('receive_notification', data);
-//   });
-// });
+// };
 
 // ===-===-===-===-===-===-\\
 // SUBSCRIPTION E-MAIL:-----||------------------------>>>>
@@ -180,12 +156,12 @@ async function run() {
     const paymentsCollection = client.db('cyco').collection('payments');
     const historyCollection = client.db('cyco').collection('history');
     const feedbacksCollection = client.db('cyco').collection('feedbacks');
-    const reviewsCollection = client.db('cyco').collection('reviews');
     const movieReviewsCollection = client.db('cyco').collection('movieReviews');
     const eventsCollection = client.db('cyco').collection('events');
     const manageSubscriptionsCollection = client
       .db('cyco')
       .collection('manageSubscriptions');
+      // const reviewsCollection = client.db('cyco').collection('reviews');
     const moviesCollection = client.db('cyco').collection('movies');
     const queryReportsCollection = client.db('cyco').collection('queryReports');
 
@@ -204,34 +180,50 @@ async function run() {
     // verifyAdmin:---------||------------------------>>>>
     // ===-===-===-===-===-//
     const verifyAdmin = async (req, res, next) => {
-      const email = req.decoded.email;
-      const query = { email: email };
-      const user = await usersCollection.findOne(query);
-      if (user?.role !== 'admin') {
-        return res
-          .status(403)
-          .send({ error: true, message: 'forbidden message' });
+      try {
+        const email = req.decoded?.email;
+        if (!email) {
+          return res.status(401).json({ error: true, message: 'Unauthorized' });
+        }
+
+        const query = { email: email };
+        const user = await usersCollection.findOne(query);
+
+        if (!user || user.role !== 'admin') {
+          return res.status(403).json({ error: true, message: 'Forbidden' });
+        }
+
+        next();
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: true, message: 'Internal server error' });
       }
-      next();
     };
 
     // ===-===-===-===-===-\\
     // USERS:---------------||------------------------>>>>
     // ===-===-===-===-===-//
     app.post('/users', async (req, res) => {
-      const user = req.body;
-      console.log(user);
-      const query = { email: user.email };
-      const existingUser = await usersCollection.findOne(query);
-    
-      if (existingUser) {
-        return res.status(201).json({ message: 'user already exists' });
+      try {
+        const user = req.body;
+        console.log(user);
+        const query = { email: user.email };
+        const existingUser = await usersCollection.findOne(query);
+
+        if (existingUser) {
+          return res.status(201).json({ message: 'User already exists' });
+        }
+
+        const result = await usersCollection.insertOne(user);
+        res.status(201).json({
+          message: 'User created successfully',
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
       }
-    
-      const result = await usersCollection.insertOne(user);
-      res.status(200).json(result);
     });
-    
 
     // get all users:
     app.get('/users', async (req, res) => {
@@ -287,17 +279,16 @@ async function run() {
     // Check admin:
     app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
-      console.log('hello')
-      try {
-        const query = { email: email };
-        const user = await usersCollection.findOne(query);
-        console.log(user)
-        const result = { admin: user?.role === 'admin' };
-        res.send(result);
-      } catch (error) {
-        console.error('Error occurred while querying the database:', error);
-        res.status(500).send({ error: 'Internal server error' });
+      console.log(email, req.decoded);
+
+      if (req.decoded?.email !== email) {
+        return res.send({ admin: false });
       }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' };
+      return res.send(result);
     });
 
     // set admin role:
@@ -313,6 +304,16 @@ async function run() {
       res.send(result);
     });
 
+    app.delete('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      if (result.deletedCount > 0) {
+        res.json({ success: true, message: 'user deleted successfully' });
+      } else {
+        res.status(404).json({ success: false, message: 'user not found' });
+      }
+    });
 
     // ===-===-===-===-===-\\
     // EVENTS:--------------||------------------------>>>>
@@ -342,30 +343,21 @@ async function run() {
 
     // Event Remove:
     app.delete('/events/:id', async (req, res) => {
-
       try {
         const EvetnId = req.params.id;
-        const id = { _id: new ObjectId(EvetnId) }
+        const id = { _id: new ObjectId(EvetnId) };
         const result = await eventsCollection.deleteOne(id);
         res.status(200).json(result);
       } catch (err) {
-        res.status(500).json({error: 'Hey Dev Please check some issues here'});
+        res
+          .status(500)
+          .json({ error: 'Hey Dev Please check some issues here' });
       }
-    })
+    });
 
     // ===-===-===-===-===-\\
     // MOVIES:--------------||------------------------>>>>
     // ===-===-===-===-===-//
-    app.get('/movies', async (req, res) => {
-      try {
-        const result = await moviesCollection.find().toArray();
-        res.status(200).json(result);
-        // return result;
-      } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-
     app.post('/movies', async (req, res) => {
       try {
         const movieData = req.body;
@@ -383,13 +375,34 @@ async function run() {
       }
     });
 
+    app.get('/movies', async (req, res) => {
+      try {
+        const result = await moviesCollection.find().toArray();
+        res.status(200).json(result);
+        // return result;
+      } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+
+    app.post('/movieReviews', async (req, res) => {
+      try {
+        const newMovieReview = req.body;
+        const movieReviews = await movieReviewsCollection.insertOne(
+          newMovieReview
+        );
+        res.send(movieReviews);
+      } catch (error) {
+        console.log(error);
+        res.status(500).join({ error: 'Internal server error' });
+      }
+    });
+
     app.get('/movieReviews', async (req, res) => {
       try {
         const fetchedReviews = await movieReviewsCollection.find().toArray();
-        console.log(fetchedReviews);
         res.status(200).json(fetchedReviews);
       } catch (error) {
-        console.error(error);
         res.status(500).json({ error: 'Internal server error' });
       }
     });
@@ -415,51 +428,27 @@ async function run() {
       }
     });
 
-    app.post('/movieReviews', async (req, res) => {
-      try {
-        const newMovieReview = req.body;
-        const movieReviews = await movieReviewsCollection.insertOne(
-          newMovieReview
-        );
-        res.send(movieReviews);
-      } catch (error) {
-        console.log(error);
-        res.status(500).join({ error: 'Internal server error' });
-      }
-    });
-
-    app.get('/feedbacks', async (req, res) => {
-      try {
-        // Query the collection to retrieve all feedbacks
-        const feedbacks = await feedbacksCollection.find({}).toArray();
-
-        // Return the feedbacks as a JSON response
-        res.status(200).json(feedbacks);
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
-      }
-    });
-
     app.post('/feedbacks', async (req, res) => {
       try {
-        const newFeedback = req.body; // Assuming your input field is named "feedback"
+        const newFeedback = req.body;
 
-        // Insert the feedback document into the collection
         const result = await feedbacksCollection.insertOne(newFeedback);
 
         res.status(201).json({
           message: 'Feedback added successfully',
           insertedId: result.insertedId,
         });
-        //         res
-        //           .status(201)
-        //           .json({
-        //             message: "Feedback added successfully",
-        //             insertedId: result.insertedId,
-        //           });
       } catch (error) {
-        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
+
+    app.get('/feedbacks', async (req, res) => {
+      try {
+        const feedbacks = await feedbacksCollection.find({}).toArray();
+
+        res.status(200).json(feedbacks);
+      } catch (error) {
         res.status(500).json({ message: 'Server error' });
       }
     });
@@ -495,19 +484,6 @@ async function run() {
         res.status(500).json({ error: 'Internal server error' });
       }
     });
-
-    // app.delete("/liveTV/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   console.log(id);
-    //   const query = { _id: new ObjectId(id) };
-    //   const result = await liveTVCollection.deleteOne(query);
-    //   console.log("delete id", result);
-    //   if (result.deletedCount > 0) {
-    //     res.json({ success: true, message: "Item deleted successfully" });
-    //   } else {
-    //     res.status(404).json({ success: false, message: "Item not found" });
-    //   }
-    // });
 
     // Define a route for retrieving channel information by ID
     app.get('/liveTV/:id', async (req, res) => {
@@ -881,7 +857,7 @@ async function run() {
       }
     });
 
-    // Query comments::
+    // Query comments:
     app.post('/forumQueries/comments/:id', async (req, res) => {
       try {
         const queryId = req.params.id;
